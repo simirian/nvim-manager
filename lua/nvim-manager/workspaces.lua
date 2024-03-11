@@ -18,5 +18,23 @@ function M.workspaces()
   return workspaces
 end
 
+function M.activate(ws_name, ws_opts)
+  if ws_opts.pre_activate then ws_opts.pre_activate() end
+
+  if ws_opts.lsp then
+    for lsp_name, lsp_opts in pairs(ws_opts.lsp) do
+      ManagerOpts.lsp_setup(lsp_name, lsp_opts)
+    end
+  end
+
+  if ws_opts.post_activate then ws_opts.post_activate() end
+end
+
+function M.enable()
+  for ws_name, ws_opts in pairs(M.workspaces()) do
+    M.activate(ws_name, ws_opts)
+  end
+end
+
 return M
 
