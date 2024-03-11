@@ -27,6 +27,12 @@ function M.activate(ws_name, ws_opts)
     end
   end
 
+  if ws_opts.events and ws_opts.events.activate then
+    vim.api.nvim_exec_autocmds("User", { pattern = ws_opts.events.activate })
+  else
+    vim.api.nvim_exec_autocmds("User", { pattern = "WSEnter:" .. ws_name })
+  end
+
   if ws_opts.post_activate then ws_opts.post_activate() end
 end
 
