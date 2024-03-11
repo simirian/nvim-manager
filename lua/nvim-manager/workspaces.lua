@@ -30,9 +30,24 @@ function M.activate(ws_name, ws_opts)
   if ws_opts.post_activate then ws_opts.post_activate() end
 end
 
-function M.enable()
-  for ws_name, ws_opts in pairs(M.workspaces()) do
-    M.activate(ws_name, ws_opts)
+function M.enable(opts)
+  opts = opts or "detect"
+  local workspaces = M.workspaces()
+
+  if type(opts) == "table" then
+    for _, ws_name in pairs(opts) do
+      M.activate(ws_name, workspaces[ws_name])
+    end
+  elseif opts == "detect" then
+    for ws_name, ws_opts in pairs(workspaces) do
+      if ws_opts.detector and ws_opts.detector() then
+        M.activate(ws_name, ws_opts)
+      end
+    end
+  elseif opts == "all" then
+    for ws_name, ws_opts in pairs(workspaces) do
+      M.activate(ws_name, ws_opts)
+    end
   end
 end
 
