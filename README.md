@@ -12,7 +12,8 @@ by simirian
     - [o] custom detection with detector functions
     - [ ] does not attempt detection when run with certain args
 - [o] dynamically load lazy.nvim plugins with workspace events
-- [ ] automatically setup keybinds, commands, and more in specific workspaces
+- [ ] automatically setup keymaps, commands, and more in specific workspaces
+    - [ ] enable keymaps and settings on entering a workspace
     - [ ] disable these settings when leaving the workspace
 
 ### Projects
