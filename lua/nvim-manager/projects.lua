@@ -6,18 +6,20 @@ local uv = vim.loop
 local config = {
   path = vim.fn.stdpath("data")
       .. (vim.fn.has("macunix") and "/projects.txt" or "\\projects.txt"),
-  cd_command = "cd"
+  cd_command = "cd",
+  autoload = true
 }
 
-local data = {}
+-- projects cache
+local projects = {}
 
 local M = {}
 
 --- Sets up global project settings
 --- @param opts? table options
 function M.setup(opts)
-  opts = opts or {}
-  vim.tbl_deep_extend("force", config, opts)
+  config = vim.tbl_deep_extend("force", config, opts or {})
+  if config.autoload then M.load_data() end
 end
 
 --[[
@@ -49,22 +51,22 @@ function M.load_data()
   end
 
   -- return the decoded file
-  data = vim.fn.json_decode(file)
+  projects = vim.fn.json_decode(file)
   return true
 end
 
 --- Loads a project.
 --- @param name string the project to load
 function M.load_project(name)
-  if not data and not M.load_data() then return end
+  if not projects and not M.load_data() then return end
 
-  if not data[name] then
+  if not projects[name] then
     vim.notify("projects: could not load project " .. name,
       vim.log.levels.ERROR)
     return
   end
 
-  local project = data[name]
+  local project = projects[name]
   vim.cmd(config.cd_command .. " " .. project[1])
   for ws_name, ws_opts in pairs(project) do
     require("nvim-manager.workspaces").activate(ws_name, ws_opts)
@@ -76,12 +78,12 @@ end
 --- @return boolean success
 function M.save_data()
   -- normalize paths here because we save less than we load
-  for _, project in pairs(data) do
+  for _, project in pairs(projects) do
     project[1] = vim.fs.normalize(project[1])
   end
 
   -- try to write, and return success or failure
-  if vim.fn.writefile({ vim.fn.json_encode(data) }, config.path) == -1 then
+  if vim.fn.writefile({ vim.fn.json_encode(projects) }, config.path) == -1 then
     vim.notify("projects: failed to save projects",
       vim.log.levels.ERROR)
     return false
@@ -102,7 +104,7 @@ function M.add_project(name, opts)
   end
 
   -- add to data, then save
-  data[name] = opts
+  projects[name] = opts
   return M.save_data()
 end
 
@@ -115,8 +117,8 @@ function M.save_project()
 end
 
 function M.list_projects()
-  if not data and not M.load_data() then return {} end
-  return vim.tbl_keys(data)
+  if not projects and not M.load_data() then return {} end
+  return vim.tbl_keys(projects)
 end
 
 return M
