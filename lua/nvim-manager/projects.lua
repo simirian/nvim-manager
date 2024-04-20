@@ -4,8 +4,8 @@
 local uv = vim.loop
 
 local config = {
-  path = vim.fn.stdpath("data")
-      .. (vim.fn.has("macunix") and "/projects.txt" or "\\projects.txt"),
+  path = vim.fn.stdpath("data") .. (vim.fn.has("macunix") and "/" or "\\")
+    .. "projects.json",
   cd_command = "cd",
   autoload = true
 }
@@ -35,16 +35,16 @@ local projects = {
 --- @return boolean success
 function M.load_data()
   -- read the projects file
-  local file = vim.fn.readfile(config.path)
+  local fok, file = pcall(vim.fn.readfile, config.path)
 
   -- it it fails, attempt to recreate and reread it
-  if not file then
-    vim.fn.writefile("", config.path)
-    file = vim.fn.readfile(config.path)
+  if not fok then
+    vim.fn.writefile({"{}"}, config.path)
+    fok, file = pcall(vim.fn.readfile, config.path)
   end
 
   -- if that still fails, abort
-  if not file then
+  if not fok then
     vim.notify("projects: could not read projects file " .. config.path,
       vim.log.levels.ERROR);
     return false
@@ -61,14 +61,14 @@ function M.load_project(name)
   if not projects and not M.load_data() then return end
 
   if not projects[name] then
-    vim.notify("projects: could not load project " .. name,
+    vim.notify("projects: project " .. name .. " does not exist",
       vim.log.levels.ERROR)
     return
   end
 
   local project = projects[name]
-  vim.cmd(config.cd_command .. " " .. project[1])
-  for ws_name, ws_opts in pairs(project) do
+  vim.cmd(config.cd_command .. " " .. project.path)
+  for _, ws in pairs(project.workspaces) do
     require("nvim-manager.workspaces").activate(ws_name, ws_opts)
   end
 end
@@ -79,15 +79,16 @@ end
 function M.save_data()
   -- normalize paths here because we save less than we load
   for _, project in pairs(projects) do
-    project[1] = vim.fs.normalize(project[1])
+    project.path = vim.fs.normalize(project.path)
   end
 
   -- try to write, and return success or failure
   if vim.fn.writefile({ vim.fn.json_encode(projects) }, config.path) == -1 then
-    vim.notify("projects: failed to save projects",
+    vim.notify("projects: failed to save projects, write failed",
       vim.log.levels.ERROR)
     return false
   end
+
   return true
 end
 
@@ -97,8 +98,8 @@ end
 --- @return boolean success
 function M.add_project(name, opts)
   -- make sure the project has a path
-  if not opts or not opts[1] then
-    vim.notify("projects: new project must have a path: " .. name,
+  if not opts or not opts.path then
+    vim.notify("projects: new project ".. name .. " must have a path",
       vim.log.levels.ERROR)
     return false
   end
@@ -113,7 +114,7 @@ end
 function M.save_project()
   local path = vim.fn.getcwd()
   local name = vim.fs.basename(path)
-  M.add_project(name, { path })
+  return M.add_project(name, { path })
 end
 
 function M.list_projects()
