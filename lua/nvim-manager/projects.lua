@@ -68,8 +68,8 @@ function M.load_project(name)
 
   local project = projects[name]
   vim.cmd(config.cd_command .. " " .. project.path)
-  for _, ws in pairs(project.workspaces) do
-    require("nvim-manager.workspaces").activate(ws_name, ws_opts)
+  for _, ws_name in pairs(project.workspaces) do
+    require("nvim-manager.workspaces").activate(ws_name)
   end
 end
 
@@ -114,7 +114,8 @@ end
 function M.save_project()
   local path = vim.fn.getcwd()
   local name = vim.fs.basename(path)
-  return M.add_project(name, { path })
+  local active = require("nvim-manager.workspaces").active_workspaces()
+  return M.add_project(name, { path = path, workspaces = active })
 end
 
 function M.list_projects()
