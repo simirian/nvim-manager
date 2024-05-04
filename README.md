@@ -20,7 +20,7 @@ by simirian
 ### Projects
 
 - [x] memorize project directories and active workspaces
-- [ ] pick from memorized projects with telescope
+- [x] pick from memorized projects with telescope
 - [ ] new project templates with lua and scripts
 - [ ] automatically recognize project direcotries and load workspaces
 
@@ -28,6 +28,7 @@ by simirian
 
 - [ ] vim helpfile
 - [ ] configuration in README
+- [ ] vim command api
 
 ## Usage
 
@@ -56,4 +57,21 @@ Access the projects API through lua with `require("nvim-manger.projects")`:
 | `save_data` | none | Saves the currently loaded data to the configured file. |
 | `add_project` | `name`, `opts` | Add a project configuration to the loaded data and save it. `opts` must have `path` set. |
 | `save_project` | none | Saves the current NeoVim instance as a project. |
+
+### Telescope
+
+This plugin provides a *nvim-telescope* extension.
+See the example below for usage
+
+```lua
+local telescope = require("telescope")
+
+-- load the extension with telescope
+telescope.load_extension("nvim-manager")
+
+-- then access the function with telescope.extensions["nvim-mangager"].projects
+-- here we make <leader>fp (find project) open the picker
+vim.keymap.set("n", "<leader>fp",
+    telescope.extensions["nvim-manager"].projects, {})
+```
 

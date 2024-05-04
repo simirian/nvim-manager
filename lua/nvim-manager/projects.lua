@@ -1,11 +1,9 @@
 -- simirian's NeoVim manager
 -- projects manager
 
-local uv = vim.loop
-
 local config = {
   path = vim.fn.stdpath("data") .. (vim.fn.has("macunix") and "/" or "\\")
-    .. "projects.json",
+      .. "projects.json",
   cd_command = "cd",
   autoload = true
 }
@@ -39,7 +37,7 @@ function M.load_data()
 
   -- it it fails, attempt to recreate and reread it
   if not fok then
-    vim.fn.writefile({"{}"}, config.path)
+    vim.fn.writefile({ "{}" }, config.path)
     fok, file = pcall(vim.fn.readfile, config.path)
   end
 
@@ -99,7 +97,7 @@ end
 function M.add_project(name, opts)
   -- make sure the project has a path
   if not opts or not opts.path then
-    vim.notify("projects: new project ".. name .. " must have a path",
+    vim.notify("projects: new project " .. name .. " must have a path",
       vim.log.levels.ERROR)
     return false
   end
