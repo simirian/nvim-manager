@@ -4,10 +4,19 @@
 local WS = require("nvim-manager.workspaces")
 
 local config = {
+  --- the path to the file that projects will be saved in
+  --- @type string
   path = vim.fn.stdpath("data") .. (vim.fn.has("macunix") and "/" or "\\")
       .. "projects.json",
+
+  --- command to use to move to a project directory
   cd_command = "cd",
-  autodetect = true
+
+  --- false to not autodetect
+  --- "within" to detect any directory within a saved project
+  --- "exact" to detect exactly a saved project directory
+  --- @type false|"within"|"exact"
+  autodetect = "within",
 }
 
 --- projects cache
@@ -152,10 +161,22 @@ function M.setup(opts)
   config = vim.tbl_deep_extend("force", config, opts or {})
   load_data()
 
+  -- load commands
   for k, v in pairs(commands) do
     local copts = vim.deepcopy(v)
     table.remove(copts, 1)
     vim.api.nvim_create_user_command(k, v[1], copts)
+  end
+
+  if config.autodetect then
+    local cwd = vim.fs.normalize(vim.fn.getcwd())
+    for k, v in pairs(projects) do
+      if config.autodetect == "within" and cwd:find(v.path) == 1 then
+        M.load(k)
+      elseif config.autodetect == "exact" and v.path == cwd then
+        M.load(k)
+      end
+    end
   end
 end
 

@@ -22,7 +22,7 @@ by simirian
 - [x] memorize project directories and active workspaces
 - [x] pick from memorized projects with telescope
 - [ ] new project templates with lua and scripts
-- [ ] automatically recognize project direcotries and load workspaces
+- [x] automatically recognize project direcotries and load workspaces
 
 ### Misc todo
 
