@@ -17,13 +17,13 @@ local function pproj(opts)
   opts = opts or {}
 
   pickers.new(opts, {
-    finder = finders.new_table { results = projects.list_projects() },
+    finder = finders.new_table { results = projects.list() },
     previwer = false,
     sorter = config.generic_sorter(opts),
     attach_mappings = function(prompt_bufnr)
       actions.select_default:replace(function()
         actions.close(prompt_bufnr)
-        projects.load_project(astate.get_selected_entry()[1])
+        projects.load(astate.get_selected_entry()[1])
       end)
       return true
     end,

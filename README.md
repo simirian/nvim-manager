@@ -29,6 +29,8 @@ by simirian
 - [ ] vim helpfile
 - [ ] configuration in README
 - [ ] vim command api
+    - [ ] projects commands
+    - [ ] workspaces commands
 
 ## Usage
 
@@ -49,18 +51,19 @@ Access the workspaces API in lua with `require("nvim-manager.workspaces")`:
 
 Access the projects API through lua with `require("nvim-manger.projects")`:
 
-| function | options | description |
-| --- | --- | --- |
-| `setup` | `opts`*?* | Loads project data and sets user configuration. |
-| `load_data` | none | Reloads data from the configured file. |
-| `load_project` | `name` | Loads the named project, if it exists. |
-| `save_data` | none | Saves the currently loaded data to the configured file. |
-| `add_project` | `name`, `opts` | Add a project configuration to the loaded data and save it. `opts` must have `path` set. |
-| `save_project` | none | Saves the current NeoVim instance as a project. |
+| function  | vim command | options | description |
+| --- | --- | --- | --- |
+| `setup` | none | `opts`*?* | Loads project data and sets user configuration. |
+| `save` | `ProjectSave` | none | Saves the current NeoVim instance as a project. |
+| `load` | `ProjectLoad` | `name` | Loads the named project, if it exists. |
+| `remove` | `ProjectRemove` | `name` | Removes a project from the list of saved projects. |
+| `list` | none | none | Returns (the command prints) a list of saved projects. |
+
+## Configuration
 
 ### Telescope
 
-This plugin provides a *nvim-telescope* extension.
+This plugin provides an *nvim-telescope* extension.
 See the example below for usage
 
 ```lua

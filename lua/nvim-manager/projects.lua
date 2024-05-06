@@ -5,33 +5,18 @@ local config = {
   path = vim.fn.stdpath("data") .. (vim.fn.has("macunix") and "/" or "\\")
       .. "projects.json",
   cd_command = "cd",
-  autoload = true
+  autodetect = true
 }
 
--- projects cache
+--- projects cache
 local projects = {}
+-- projects[name] = { path = "/...", workspaces = { "name" } }
 
 local M = {}
 
---- Sets up global project settings
---- @param opts? table options
-function M.setup(opts)
-  config = vim.tbl_deep_extend("force", config, opts or {})
-  if config.autoload then M.load_data() end
-end
-
---[[
-local projects = {
-  ["nvim-dot"] = { -- name is key
-    "C:\\Users\\what\\AppData\\local\\nvim\\", -- path is [1]
-    nvim = {} -- workspaces are in pairs(project)
-  }
-}
-]]
-
 --- Loads and caches project data.
 --- @return boolean success
-function M.load_data()
+local function load_data()
   -- read the projects file
   local fok, file = pcall(vim.fn.readfile, config.path)
 
@@ -48,33 +33,36 @@ function M.load_data()
     return false
   end
 
-  -- return the decoded file
+  -- if not then decode and cache the file
   projects = vim.fn.json_decode(file)
   return true
 end
 
 --- Loads a project.
 --- @param name string the project to load
-function M.load_project(name)
-  if not projects and not M.load_data() then return end
+function M.load(name)
+  -- if we can't get projects then we end early
+  if not projects and not load_data() then return end
 
+  -- if this project does not exist, we notify the caller
   if not projects[name] then
     vim.notify("projects: project " .. name .. " does not exist",
       vim.log.levels.ERROR)
     return
   end
 
+  -- otherwise we try to load the project by cd-ing to the path and loading its
+  --   workspaces
   local project = projects[name]
   vim.cmd(config.cd_command .. " " .. project.path)
-  for _, ws_name in pairs(project.workspaces) do
+  for _, ws_name in ipairs(project.workspaces) do
     require("nvim-manager.workspaces").activate(ws_name)
   end
 end
 
---- Saves currently loaded project data. DO NOT run if loading failed, your
----   projects will be cleared!
+--- Saves currently loaded project data. DO NOT run if loading failed!
 --- @return boolean success
-function M.save_data()
+local function save_data()
   -- normalize paths here because we save less than we load
   for _, project in pairs(projects) do
     project.path = vim.fs.normalize(project.path)
@@ -90,35 +78,82 @@ function M.save_data()
   return true
 end
 
---- Adds a project to the loaded data, then saves the data.
---- @param name string the name of the project to add
---- @param opts table the project options
---- @return boolean success
-function M.add_project(name, opts)
-  -- make sure the project has a path
-  if not opts or not opts.path then
-    vim.notify("projects: new project " .. name .. " must have a path",
-      vim.log.levels.ERROR)
-    return false
-  end
-
-  -- add to data, then save
-  projects[name] = opts
-  return M.save_data()
-end
-
--- figure out how this will work
 --- Save the current instance as a project.
-function M.save_project()
+--- @return boolean success
+function M.save()
   local path = vim.fn.getcwd()
   local name = vim.fs.basename(path)
   local active = require("nvim-manager.workspaces").active_workspaces()
-  return M.add_project(name, { path = path, workspaces = active })
+  projects[name] = { path = path, workspaces = active }
+  return save_data()
 end
 
-function M.list_projects()
-  if not projects and not M.load_data() then return {} end
+--- Remove a project from the list of saved projects. This WILL NOT delete the
+---   project from your hard drive
+--- @param name string the name of the project to delete
+--- @return boolean success
+function M.remove(name)
+  projects[name] = nil
+  return save_data()
+end
+
+function M.list()
+  if not projects and not load_data() then return {} end
   return vim.tbl_keys(projects)
+end
+
+--- table of commands for this module
+--- @type { string: table }
+local commands = {
+
+  -- load an existng project
+  ProjectLoad = {
+    function(opts)
+      M.load(opts.fargs[1])
+    end,
+    nargs = 1,
+    complete = function()
+      return M.list()
+    end,
+  },
+
+  -- save the current instance as a project
+  ProjectSave = {
+    function()
+      M.save()
+    end,
+  },
+
+  -- list saved projects
+  ProjectList = {
+    function()
+      for _, v in ipairs(M.list()) do print(v) end
+    end,
+  },
+
+  -- remove a project
+  ProjectRemove = {
+    function(opts)
+      M.remove(opts.fargs[1])
+    end,
+    nargs = 1,
+    complete = function()
+      return M.list()
+    end,
+  },
+}
+
+--- Sets up global project settings
+--- @param opts? table options
+function M.setup(opts)
+  config = vim.tbl_deep_extend("force", config, opts or {})
+  load_data()
+
+  for k, v in pairs(commands) do
+    local copts = vim.deepcopy(v)
+    table.remove(copts, 1)
+    vim.api.nvim_create_user_command(k, v[1], copts)
+  end
 end
 
 return M
