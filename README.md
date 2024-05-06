@@ -8,9 +8,9 @@ by simirian
 
 ### Workspaces
 
-- [ ] automatically detect workspaces on entering NeoVim
+- [x] automatically detect workspaces on entering NeoVim
     - [x] custom detection with detector functions
-    - [ ] does not attempt detection when run with certain args
+    - [x] enable workspaces by detectors on calling a lua function on startup
 - [x] dynamic wokspace action with callbacks
 - [ ] automatically setup keymaps, commands, and more in specific workspaces
     - [ ] enable keymaps and settings on entering a workspace
@@ -27,10 +27,12 @@ by simirian
 ### Misc todo
 
 - [ ] vim helpfile
-- [ ] configuration in README
-- [ ] vim command api
-    - [ ] projects commands
-    - [ ] workspaces commands
+- [ ] configuration
+    - [ ] guide in README
+    - [ ] lots of options
+- [x] vim command api
+    - [x] projects commands
+    - [x] workspaces commands
 
 ## Usage
 
@@ -38,14 +40,13 @@ by simirian
 
 Access the workspaces API in lua with `require("nvim-manager.workspaces")`:
 
-| function | options | description |
-| --- | --- | --- |
-| `setup` | `opts`*?* | Loads workspace modules and sets up user config. |
-| `load_workspaces` | none | Reloads workspace modules. |
-| `list_workspaces` | none | Returns a list of configured workspaces. |
-| `active_workspaces` | none | Returns a list of the active workspaces. |
-| `activate` | `ws_name` | Name of the configured workspace to activate. |
-| `enable` | `opts`*?* | Activate workspaces in bulk. Calling without args or with `"detect"` will use workspace detector functions to determine activation. `"all"` will activate all workspaces, and a table will activate all workspaces named in it. |
+| function | vim command | options | description |
+| --- | --- | --- | --- |
+| `setup` | none | `opts`*?* | Loads workspace modules and sets up user config. |
+| `list_configured` | `WorkspaceListConf` | none | Returns a list of configured workspaces. |
+| `list_active` | `WorkspaceListActive` | none | Returns a list of the active workspaces. |
+| `activate` | `WorkspaceActivate` | `ws_name` | Name of the configured workspace to activate. |
+| `enable` | `WorkspaceEnable` | `"all"`\|`"detect"`\|none | Enables all workspaces, or enables workspaces based on their detector functions. |
 
 ### Projects
 
@@ -57,7 +58,7 @@ Access the projects API through lua with `require("nvim-manger.projects")`:
 | `save` | `ProjectSave` | none | Saves the current NeoVim instance as a project. |
 | `load` | `ProjectLoad` | `name` | Loads the named project, if it exists. |
 | `remove` | `ProjectRemove` | `name` | Removes a project from the list of saved projects. |
-| `list` | none | none | Returns (the command prints) a list of saved projects. |
+| `list` | `ProjectList` | none | Returns (the command prints) a list of saved projects. |
 
 ## Configuration
 

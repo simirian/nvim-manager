@@ -1,6 +1,8 @@
 -- simirian's NeoVim manager
 -- projects manager
 
+local WS = require("nvim-manager.workspaces")
+
 local config = {
   path = vim.fn.stdpath("data") .. (vim.fn.has("macunix") and "/" or "\\")
       .. "projects.json",
@@ -9,6 +11,7 @@ local config = {
 }
 
 --- projects cache
+--- @type { string: table }
 local projects = {}
 -- projects[name] = { path = "/...", workspaces = { "name" } }
 
@@ -56,7 +59,7 @@ function M.load(name)
   local project = projects[name]
   vim.cmd(config.cd_command .. " " .. project.path)
   for _, ws_name in ipairs(project.workspaces) do
-    require("nvim-manager.workspaces").activate(ws_name)
+    WS.activate(ws_name)
   end
 end
 
@@ -83,7 +86,7 @@ end
 function M.save()
   local path = vim.fn.getcwd()
   local name = vim.fs.basename(path)
-  local active = require("nvim-manager.workspaces").active_workspaces()
+  local active = WS.list_active()
   projects[name] = { path = path, workspaces = active }
   return save_data()
 end
@@ -124,13 +127,6 @@ local commands = {
     end,
   },
 
-  -- list saved projects
-  ProjectList = {
-    function()
-      for _, v in ipairs(M.list()) do print(v) end
-    end,
-  },
-
   -- remove a project
   ProjectRemove = {
     function(opts)
@@ -139,6 +135,13 @@ local commands = {
     nargs = 1,
     complete = function()
       return M.list()
+    end,
+  },
+
+  -- list saved projects
+  ProjectList = {
+    function()
+      for _, v in ipairs(M.list()) do print(v) end
     end,
   },
 }

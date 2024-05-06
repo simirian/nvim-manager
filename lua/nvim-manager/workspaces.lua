@@ -3,7 +3,6 @@
 
 local config = {
   workspace_module = "workspaces",
-  autoload = true,
   lsp_setup = function(lsp_name, lsp_opts)
     lsp_opts = lsp_opts or {}
 
@@ -30,18 +29,14 @@ local config = {
 --- @type { string: table }
 local workspaces = {}
 
+--- list of active workspaces
 --- @type string[]
 local active_workspaces = {}
 
 local M = {}
 
-function M.setup(opts)
-  config = vim.tbl_deep_extend("force", config, opts or {})
-  M.enable()
-end
-
 --- Loads workspaces from user config
-function M.load_workspaces()
+local function load_data()
   -- get files in workspace path
   local files = vim.api.nvim_get_runtime_file("lua/"
     .. config.workspace_module .. "/*.lua", true)
@@ -57,25 +52,12 @@ function M.load_workspaces()
   end
 end
 
---- Load, cahce, and return a list of configured workspaces.
---- @return { string: table} workspaces
-function M.list_workspaces()
-  if next(workspaces) then return workspaces end
-  M.load_workspaces()
-  return workspaces
-end
-
---- Return a list of the active workspaces.
---- @return string[] active_workspaces
-function M.active_workspaces()
-  return active_workspaces
-end
-
 --- Activates the given workspace.
 --- @param ws_name string
 --- @return boolean success
 function M.activate(ws_name)
-  if not next(workspaces) then M.load_workspaces() end
+  -- make sure workspaces have been loaded
+  if not next(workspaces) then load_data() end
 
   -- make sure the workspace exists
   if not workspaces[ws_name] then
@@ -105,30 +87,97 @@ function M.activate(ws_name)
   return true
 end
 
---- Enables workspaces based on the options
---- @param opts? "detect"|"all"|table detect, all, or a list of workspaces
+--- Enables all workspaces, or enables them based on their detector functions
+--- @param opts? "detect"|"all" how to enable workspaces
 function M.enable(opts)
-  if not next(workspaces) then M.load_workspaces() end
+  -- make sure workspaces are loaded
+  if not next(workspaces) then load_data() end
   opts = opts or "detect"
 
-  if type(opts) == "table" then
-    for _, ws_name in ipairs(opts) do
-      M.activate(ws_name)
-    end
-  elseif opts == "detect" then
+  if opts == "detect" then
     for ws_name, ws_opts in pairs(workspaces) do
       if ws_opts.detector and ws_opts.detector() then
         M.activate(ws_name)
       end
     end
   elseif opts == "all" then
-    for ws_name, ws_opts in pairs(workspaces) do
+    for ws_name, _ in pairs(workspaces) do
       M.activate(ws_name)
     end
   else
     vim.notify("Workspaces: unrecognized enable option " .. opts
       .. "\nto load a single workspace call `activate`",
       vim.log.levels.ERROR)
+  end
+end
+
+--- Load, cache, and return a list of configured workspaces.
+--- @return string[] workspaces
+function M.list_configured()
+  -- make sure workspaces are loaded
+  if not next(workspaces) then load_data() end
+  return vim.tbl_keys(workspaces)
+end
+
+--- Return a list of the active workspaces.
+--- @return string[] workspaces
+function M.list_active()
+  return vim.deepcopy(active_workspaces)
+end
+
+--- table of commands for this module
+--- @type { string: table }
+local commands = {
+
+  -- activate a workspace
+  WorkspaceActivate = {
+    function(opts)
+      M.activate(opts.fargs[1])
+    end,
+    nargs = 1,
+    complete = function()
+      return M.list_configured()
+    end,
+  },
+
+  -- enable workspaces in bulk
+  WorkspaceEnable = {
+    function(opts)
+      if #opts.fargs > 1 then
+        M.enable(opts.fargs)
+      else
+        M.enable(opts.fargs[1])
+      end
+    end,
+    nargs = "+",
+    complete = function()
+      return { "all", "detect" }
+    end,
+  },
+
+  -- list configured workspaces
+  WorkspaceListConf = {
+    function()
+      for _, v in pairs(M.list_configured()) do print(v) end
+    end,
+  },
+
+  -- list active workspaces
+  WorkspaceListActive = {
+    function()
+      for _, v in ipairs(M.list_active()) do print(v) end
+    end,
+  },
+}
+
+function M.setup(opts)
+  config = vim.tbl_deep_extend("force", config, opts or {})
+  load_data()
+
+  for k, v in pairs(commands) do
+    local copts = vim.deepcopy(v)
+    table.remove(copts, 1)
+    vim.api.nvim_create_user_command(k, v[1], copts)
   end
 end
 
