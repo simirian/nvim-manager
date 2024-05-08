@@ -2,13 +2,19 @@
 -- workspace manager
 
 local config = {
-  --- @type string the name of the module workspaces are stored in
-  workspace_module = "workspaces",
+  --- Either a table of workspace specs or a module name that contains workspace
+  ---   modules. If a string NAME, workspaces will look for `NAME/*.lua`.
+  --- @type string|{ string: table }
+  workspaces = "workspaces",
 
-  --- @type false|"all"|"detect" how workspaces should be auto-enabled
+  --- How workspaces should be auto-enabled.
+  ---   `false` will prevent auto enabling of workspaces.
+  ---   `"all"` will enable all workspaces immediately.
+  ---   `"detect"` will enable workspaces based on their activation functions.
+  --- @type false|"all"|"detect"
   auto_enable = false,
 
-  --- function to enable language servers
+  --- Function to install / enable language servers.
   --- @type fun(lsp_name: string, lsp_opts: table)
   lsp_setup = function(lsp_name, lsp_opts)
     lsp_opts = lsp_opts or {}
@@ -32,27 +38,77 @@ local config = {
   end
 }
 
---- workspaces cache
+--- Workspace spec.
+--[[
+local ws = {
+  --- Detector function that decides if the workspace should be enabled.
+  --- @type fun(): boolean
+  detector = function() return true end,
+
+  --- Filetypes for treesitter to install.
+  --- Run TSInstall <Tab> to see completion options for filetypes.
+  --- @type string[]
+  filetypes = { "cpp" },
+
+  --- Keymaps to bind.
+  --- @type table[]
+  maps = {
+    -- see :h vim.keymap.set : options are passed directly
+    {
+      mode = "n",
+      lhs = "f5",
+      rhs = "!make<cr>",
+      opts = {},
+    },
+  },
+
+  --- Run when a workspace is enabled.
+  --- @type fun()
+  activate = function() end,
+
+  --- List of other workspaaces that this one will activate.
+  --- @type string[]
+  implies = { "workspace name" },
+
+  --- List of lsp servers to configure and install.
+  lsp = {
+    ["lspconfig_name"] = {
+      lspconfig_settings = "...",
+      settings = {
+        lsp_settings = "...",
+      },
+    },
+  },
+}
+]]
+
+--- Workspaces cache.
 --- @type { string: table }
 local workspaces = {}
 
---- list of active workspaces
+--- List of active workspaces.
 --- @type string[]
 local active_workspaces = {}
 
 local M = {}
 
---- Loads workspaces from user config
+--- Loads workspaces from user config.
 local function load_data()
+  -- if the user provided a table directly
+  if type(config.workspaces) == "table" then
+    workspaces = vim.deepcopy(config.workspaces --[[ @as { string: table }]])
+    return
+  end
+
   -- get files in workspace path
   local files = vim.api.nvim_get_runtime_file("lua/"
-    .. config.workspace_module .. "/*.lua", true)
+    .. config.workspaces .. "/*.lua", true)
 
   for _, file in ipairs(files) do
     -- convert them to workspace and module names
     local basename = vim.fs.basename(file)
     local wsname = basename:sub(0, -5)
-    local module = config.workspace_module .. "." .. wsname
+    local module = config.workspaces .. "." .. wsname
 
     -- require them into workspaces cache
     workspaces[wsname] = require(module)
@@ -60,7 +116,7 @@ local function load_data()
 end
 
 --- Activates the given workspace.
---- @param ws_name string
+--- @param ws_name string The workspace name.
 --- @return boolean success
 function M.activate(ws_name)
   -- make sure workspaces have been loaded
@@ -75,12 +131,21 @@ function M.activate(ws_name)
 
   local ws_opts = workspaces[ws_name]
 
-  -- pre-activation callback
-  if ws_opts.pre_activate then ws_opts.pre_activate() end
-
+  -- record that this workspace is now active
   if not vim.tbl_contains(active_workspaces, ws_name) then
     table.insert(active_workspaces, ws_name)
   end
+
+  if ws_opts.implies then
+    for _, rq_name in ipairs(ws_opts.implies) do
+      if not vim.tbl_contains(active_workspaces, rq_name) then
+        M.activate(rq_name)
+      end
+    end
+  end
+
+  -- run activation function
+  if ws_opts.activate then ws_opts.activate() end
 
   -- activate lsp
   if ws_opts.lsp then
@@ -89,13 +154,20 @@ function M.activate(ws_name)
     end
   end
 
-  -- post activation callback
-  if ws_opts.post_activate then ws_opts.post_activate() end
+  -- set mappings
+  if ws_opts.maps then
+    for _, kb_tbl in ipairs(ws_opts.maps) do
+      vim.keymap.set(
+        kb_tbl.mode or "n", kb_tbl.lhs, kb_tbl.rhs, kb_tbl.opts or {}
+      )
+    end
+  end
+
   return true
 end
 
---- Enables all workspaces, or enables them based on their detector functions
---- @param opts? "detect"|"all" how to enable workspaces
+--- Enables all workspaces, or enables them based on their detector functions.
+--- @param opts? "detect"|"all" How to enable workspaces.
 function M.enable(opts)
   -- make sure workspaces are loaded
   if not next(workspaces) then load_data() end
@@ -118,7 +190,7 @@ function M.enable(opts)
   end
 end
 
---- Load, cache, and return a list of configured workspaces.
+--- Returns a list of configured workspaces.
 --- @return string[] workspaces
 function M.list_configured()
   -- make sure workspaces are loaded
@@ -126,17 +198,17 @@ function M.list_configured()
   return vim.tbl_keys(workspaces)
 end
 
---- Return a list of the active workspaces.
+--- Returns a list of the active workspaces.
 --- @return string[] workspaces
 function M.list_active()
   return vim.deepcopy(active_workspaces)
 end
 
---- table of commands for this module
+--- Table of commands for this module.
 --- @type { string: table }
 local commands = {
 
-  -- activate a workspace
+  --- Activate a workspace.
   WorkspaceActivate = {
     function(opts)
       M.activate(opts.fargs[1])
@@ -147,7 +219,7 @@ local commands = {
     end,
   },
 
-  -- enable workspaces in bulk
+  --- Enable workspaces in bulk.
   WorkspaceEnable = {
     function(opts)
       if #opts.fargs > 1 then
@@ -162,14 +234,14 @@ local commands = {
     end,
   },
 
-  -- list configured workspaces
+  --- List configured workspaces.
   WorkspaceListConf = {
     function()
       for _, v in pairs(M.list_configured()) do print(v) end
     end,
   },
 
-  -- list active workspaces
+  --- List active workspaces.
   WorkspaceListActive = {
     function()
       for _, v in ipairs(M.list_active()) do print(v) end
@@ -177,6 +249,8 @@ local commands = {
   },
 }
 
+--- Sets up global workspace settings.
+--- @param opts? table
 function M.setup(opts)
   config = vim.tbl_deep_extend("force", config, opts or {})
   load_data()

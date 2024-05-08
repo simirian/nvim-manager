@@ -12,10 +12,12 @@ by simirian
     - [x] custom detection with detector functions
     - [x] enable workspaces by detectors on calling a lua function on startup
 - [x] dynamic wokspace action with callbacks
-- [ ] automatically setup keymaps, commands, and more in specific workspaces
-    - [ ] enable keymaps and settings on entering a workspace
-    - [ ] disable these settings when leaving the workspace
-    - [x] automatically configure language servers by workspace
+- [ ] enable features on workspace activation
+    - [x] keymaps
+    - [ ] commands
+- [ ] disable these settings when leaving the workspace
+- [x] automatically configure language servers by workspace
+- [x] workspaces can imply other workspaces to automatically load each other
 
 ### Projects
 
@@ -23,6 +25,7 @@ by simirian
 - [x] pick from memorized projects with telescope
 - [ ] new project templates with lua and scripts
 - [x] automatically recognize project direcotries and load workspaces
+- [ ] cd to a project dir when remotely opening a directory (`nvim ~/sournce/project/`)
 
 ### Misc todo
 

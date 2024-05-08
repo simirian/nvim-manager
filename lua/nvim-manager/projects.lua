@@ -4,22 +4,23 @@
 local WS = require("nvim-manager.workspaces")
 
 local config = {
-  --- the path to the file that projects will be saved in
+  --- The path to the file that projects will be saved in.
   --- @type string
   path = vim.fn.stdpath("data") .. (vim.fn.has("macunix") and "/" or "\\")
       .. "projects.json",
 
-  --- command to use to move to a project directory
+  --- Command to use to move to a project directory.
   cd_command = "cd",
 
-  --- false to not autodetect
-  --- "within" to detect any directory within a saved project
-  --- "exact" to detect exactly a saved project directory
+  --- How to autodetect projects when entering neovim.
+  ---   `false` to not autodetect.
+  ---   `"within"` to detect any directory within a saved project.
+  ---   `"exact"` to detect exactly a saved project directory.
   --- @type false|"within"|"exact"
   autodetect = "within",
 }
 
---- projects cache
+--- Projects cache.
 --- @type { string: table }
 local projects = {}
 -- projects[name] = { path = "/...", workspaces = { "name" } }
@@ -51,7 +52,7 @@ local function load_data()
 end
 
 --- Loads a project.
---- @param name string the project to load
+--- @param name string The project to load.
 function M.load(name)
   -- if we can't get projects then we end early
   if not projects and not load_data() then return end
@@ -101,8 +102,8 @@ function M.save()
 end
 
 --- Remove a project from the list of saved projects. This WILL NOT delete the
----   project from your hard drive
---- @param name string the name of the project to delete
+---   project from your hard drive.
+--- @param name string The name of the project to delete.
 --- @return boolean success
 function M.remove(name)
   projects[name] = nil
@@ -114,11 +115,11 @@ function M.list()
   return vim.tbl_keys(projects)
 end
 
---- table of commands for this module
+--- Table of commands for this module.
 --- @type { string: table }
 local commands = {
 
-  -- load an existng project
+  --- Load an existng project.
   ProjectLoad = {
     function(opts)
       M.load(opts.fargs[1])
@@ -129,14 +130,14 @@ local commands = {
     end,
   },
 
-  -- save the current instance as a project
+  --- Save the current instance as a project.
   ProjectSave = {
     function()
       M.save()
     end,
   },
 
-  -- remove a project
+  --- Remove a project.
   ProjectRemove = {
     function(opts)
       M.remove(opts.fargs[1])
@@ -147,7 +148,7 @@ local commands = {
     end,
   },
 
-  -- list saved projects
+  --- List saved projects.
   ProjectList = {
     function()
       for _, v in ipairs(M.list()) do print(v) end
@@ -155,8 +156,8 @@ local commands = {
   },
 }
 
---- Sets up global project settings
---- @param opts? table options
+--- Sets up global project settings.
+--- @param opts? table
 function M.setup(opts)
   config = vim.tbl_deep_extend("force", config, opts or {})
   load_data()
