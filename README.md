@@ -28,7 +28,7 @@ by simirian
 
 - [ ] vim helpfile
 - [ ] configuration
-    - [ ] guide in README
+    - [x] guide in README
     - [ ] lots of options
 - [x] vim command api
     - [x] projects commands
@@ -62,7 +62,128 @@ Access the projects API through lua with `require("nvim-manger.projects")`:
 
 ## Configuration
 
-### Telescope
+### Workspaces
+
+#### Setup
+
+To enable workspaces you must run `require("nvim-manager.workspaces").setup()`.
+This function takes a table as arguments with the following default values:
+
+```lua
+{
+  --- Either a table of workspace specs or a module name that contains workspace
+  ---   modules. If a string NAME, workspaces will look for `NAME/*.lua`.
+  --- @type string|{ string: table }
+  workspaces = "workspaces",
+
+  --- How workspaces should be auto-enabled.
+  ---   `false` will prevent auto enabling of workspaces.
+  ---   `"all"` will enable all workspaces immediately.
+  ---   `"detect"` will enable workspaces based on their activation functions.
+  --- @type false|"all"|"detect"
+  auto_enable = false,
+
+  --- Function to install / enable language servers.
+  --- @type fun(lsp_name: string, lsp_opts: table)
+  lsp_setup = function(lsp_name, lsp_opts)
+    lsp_opts = lsp_opts or {}
+
+    -- try to load lspconfig
+    local lspok, lspcfg = pcall(require, "lspconfig")
+    if not lspok then
+      vim.notify("workspace: lsp setup failed, lspconfig not loaded",
+        vim.log.levels.ERROR)
+      return
+    end
+
+    -- try to add nvim-cmp capabilities
+    local cmpok, cmplsp = pcall(require, "cmp_nvim_lsp")
+    if cmpok then
+      lsp_opts.capabilities = cmplsp.default_capabilities()
+    end
+
+    -- set up the language server
+    lspcfg[lsp_name].setup(lsp_opts)
+  end
+}
+```
+
+#### Workspace Spec
+
+The workspace plugin is useless without any configured workspaces.
+An example project specification will all options filled out with stubs looks like the following:
+
+```lua
+local workspace = {
+  --- Detector function that decides if the workspace should be enabled.
+  --- @type fun(): boolean
+  detector = function() return false end,
+
+  --- Filetypes for treesitter to install.
+  --- Run TSInstall <Tab> to see completion options for filetypes.
+  --- @type string[]
+  filetypes = { "cpp" },
+
+  --- Keymaps to bind.
+  --- @type table[]
+  maps = {
+    -- see :h vim.keymap.set : options are passed directly
+    {
+      mode = "n",
+      lhs = "f5",
+      rhs = "!make<cr>",
+      opts = {},
+    },
+  },
+
+  --- Run when a workspace is enabled.
+  --- @type fun()
+  activate = function() end,
+
+  --- List of other workspaaces that this one will activate.
+  --- @type string[]
+  implies = { "workspace name" },
+
+  --- List of lsp servers to configure and install.
+  lsp = {
+    ["lspconfig_name"] = {
+      lspconfig_settings = "...",
+      settings = {
+        lsp_settings = "...",
+      },
+    },
+  },
+}
+```
+
+### Projects
+
+#### Setup
+
+To enable projects you must run `require("nvim-manager.projects).setup()`.
+This function takes a table of options with the following default values:
+
+```lua
+{
+  --- The path to the file that projects will be saved in.
+  --- @type string
+  path = vim.fn.stdpath("data") .. (vim.fn.has("macunix") and "/" or "\\")
+      .. "projects.json",
+
+  --- Command to use to move to a project directory.
+  cd_command = "cd",
+
+  --- How to autodetect projects when entering neovim.
+  ---   `false` to not autodetect.
+  ---   `"within"` to detect any directory within a saved project.
+  ---   `"exact"` to detect exactly a saved project directory.
+  --- @type false|"within"|"exact"
+  autodetect = "within",
+}
+
+```
+
+#### Telescope
 
 This plugin provides an *nvim-telescope* extension.
 See the example below for usage
