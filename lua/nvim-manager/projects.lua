@@ -168,11 +168,14 @@ function M.setup(opts)
     vim.api.nvim_create_user_command(k, v[1], copts)
   end
 
+  -- autodetect based on config setting
   if config.autodetect then
     local cwd = vim.fs.normalize(vim.fn.getcwd())
     for k, v in pairs(projects) do
-      if config.autodetect == "within" and cwd:find(v.path) == 1 then
+      -- currently within a project directory or its child
+      if config.autodetect == "within" and cwd:find(v.path, 1, true) == 1 then
         M.load(k)
+      -- exactly match project directories
       elseif config.autodetect == "exact" and v.path == cwd then
         M.load(k)
       end

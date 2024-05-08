@@ -2,7 +2,14 @@
 -- workspace manager
 
 local config = {
+  --- @type string the name of the module workspaces are stored in
   workspace_module = "workspaces",
+
+  --- @type false|"all"|"detect" how workspaces should be auto-enabled
+  auto_enable = false,
+
+  --- function to enable language servers
+  --- @type fun(lsp_name: string, lsp_opts: table)
   lsp_setup = function(lsp_name, lsp_opts)
     lsp_opts = lsp_opts or {}
 
@@ -174,10 +181,16 @@ function M.setup(opts)
   config = vim.tbl_deep_extend("force", config, opts or {})
   load_data()
 
+  -- load commands
   for k, v in pairs(commands) do
     local copts = vim.deepcopy(v)
     table.remove(copts, 1)
     vim.api.nvim_create_user_command(k, v[1], copts)
+  end
+
+  -- enable workspaces based on config
+  if config.auto_enable then
+    M.enable(config.auto_enable)
   end
 end
 

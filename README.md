@@ -43,9 +43,9 @@ Access the workspaces API in lua with `require("nvim-manager.workspaces")`:
 | function | vim command | options | description |
 | --- | --- | --- | --- |
 | `setup` | none | `opts`*?* | Loads workspace modules and sets up user config. |
-| `list_configured` | `WorkspaceListConf` | none | Returns a list of configured workspaces. |
-| `list_active` | `WorkspaceListActive` | none | Returns a list of the active workspaces. |
-| `activate` | `WorkspaceActivate` | `ws_name` | Name of the configured workspace to activate. |
+| `list_configured` | `WorkspaceListConf` | none | Returns (the command prints) a list of configured workspace names. |
+| `list_active` | `WorkspaceListActive` | none | Returns (the command prints) a list of the active workspace names. |
+| `activate` | `WorkspaceActivate` | `ws_name` | Activate a workspace by name. |
 | `enable` | `WorkspaceEnable` | `"all"`\|`"detect"`\|none | Enables all workspaces, or enables workspaces based on their detector functions. |
 
 ### Projects
@@ -58,7 +58,7 @@ Access the projects API through lua with `require("nvim-manger.projects")`:
 | `save` | `ProjectSave` | none | Saves the current NeoVim instance as a project. |
 | `load` | `ProjectLoad` | `name` | Loads the named project, if it exists. |
 | `remove` | `ProjectRemove` | `name` | Removes a project from the list of saved projects. |
-| `list` | `ProjectList` | none | Returns (the command prints) a list of saved projects. |
+| `list` | `ProjectList` | none | Returns (the command prints) a list of saved project names. |
 
 ## Configuration
 
