@@ -71,6 +71,7 @@ local ws = {
   implies = { "workspace name" },
 
   --- List of lsp servers to configure and install.
+  --- @type { string: table }
   lsp = {
     ["lspconfig_name"] = {
       lspconfig_settings = "...",

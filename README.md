@@ -46,10 +46,10 @@ Access the workspaces API in lua with `require("nvim-manager.workspaces")`:
 | function | vim command | options | description |
 | --- | --- | --- | --- |
 | `setup` | none | `opts`*?* | Loads workspace modules and sets up user config. |
-| `list_configured` | `WorkspaceListConf` | none | Returns (the command prints) a list of configured workspace names. |
-| `list_active` | `WorkspaceListActive` | none | Returns (the command prints) a list of the active workspace names. |
 | `activate` | `WorkspaceActivate` | `ws_name` | Activate a workspace by name. |
 | `enable` | `WorkspaceEnable` | `"all"`\|`"detect"`\|none | Enables all workspaces, or enables workspaces based on their detector functions. |
+| `list_configured` | `WorkspaceListConf` | none | Returns (the command prints) a list of configured workspace names. |
+| `list_active` | `WorkspaceListActive` | none | Returns (the command prints) a list of the active workspace names. |
 
 ### Projects
 
@@ -114,7 +114,9 @@ This function takes a table as arguments with the following default values:
 #### Workspace Spec
 
 The workspace plugin is useless without any configured workspaces.
-An example project specification will all options filled out with stubs looks like the following:
+If running setup with a table of workspaces, you should include each workspace spec should be included in a list like table.
+If running setup with `workspaces = "MODULE_NAME"` then there should be a folder in your neovim configuration `nvim/lua/MODULE_NAME/`, which contains workspace modules that each return a workspace spec to be loaded.
+An example workspace specification with all options filled out with stubs looks like the following:
 
 ```lua
 local workspace = {
@@ -148,6 +150,7 @@ local workspace = {
   implies = { "workspace name" },
 
   --- List of lsp servers to configure and install.
+  --- @type { string: table }
   lsp = {
     ["lspconfig_name"] = {
       lspconfig_settings = "...",
@@ -174,6 +177,7 @@ This function takes a table of options with the following default values:
       .. "projects.json",
 
   --- Command to use to move to a project directory.
+  --- @type string|fun()
   cd_command = "cd",
 
   --- How to autodetect projects when entering neovim.
@@ -183,7 +187,6 @@ This function takes a table of options with the following default values:
   --- @type false|"within"|"exact"
   autodetect = "within",
 }
-
 ```
 
 #### Telescope
@@ -202,4 +205,3 @@ telescope.load_extension("nvim-manager")
 vim.keymap.set("n", "<leader>fp",
     telescope.extensions["nvim-manager"].projects, {})
 ```
-

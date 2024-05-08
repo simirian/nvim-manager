@@ -10,6 +10,7 @@ local config = {
       .. "projects.json",
 
   --- Command to use to move to a project directory.
+  --- @type string|fun()
   cd_command = "cd",
 
   --- How to autodetect projects when entering neovim.
@@ -67,7 +68,11 @@ function M.load(name)
   -- otherwise we try to load the project by cd-ing to the path and loading its
   --   workspaces
   local project = projects[name]
-  vim.cmd(config.cd_command .. " " .. project.path)
+  if type(config.cd_command) == "function" then
+    config.cd_command()
+  else
+    vim.cmd(config.cd_command .. " " .. project.path)
+  end
   for _, ws_name in ipairs(project.workspaces) do
     WS.activate(ws_name)
   end
@@ -176,7 +181,7 @@ function M.setup(opts)
       -- currently within a project directory or its child
       if config.autodetect == "within" and cwd:find(v.path, 1, true) == 1 then
         M.load(k)
-      -- exactly match project directories
+        -- exactly match project directories
       elseif config.autodetect == "exact" and v.path == cwd then
         M.load(k)
       end
