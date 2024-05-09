@@ -31,7 +31,6 @@ local function pproj(opts)
 end
 
 return telescope.register_extension {
-  setup = function() end,
   exports = {
     projects = pproj,
   },

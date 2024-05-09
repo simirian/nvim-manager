@@ -161,6 +161,19 @@ local commands = {
   },
 }
 
+--- Takes a directory and returns if the current file is in that directory.
+--- @param dirname string The directory path to check.
+--- @param mode? "within"|"exact" The mode to search for the file
+--- @return boolean contained
+local function in_dir(dirname, mode)
+  local cwd = vim.fs.normalize(vim.fn.getcwd())
+  dirname = vim.fs.normalize(dirname)
+  mode = mode or "within"
+
+  return (mode == "within" and cwd:find(dirname, 1, true) == 1)
+      or (mode == "exact" and dirname == cwd)
+end
+
 --- Sets up global project settings.
 --- @param opts? table
 function M.setup(opts)
@@ -176,15 +189,8 @@ function M.setup(opts)
 
   -- autodetect based on config setting
   if config.autodetect then
-    local cwd = vim.fs.normalize(vim.fn.getcwd())
     for k, v in pairs(projects) do
-      -- currently within a project directory or its child
-      if config.autodetect == "within" and cwd:find(v.path, 1, true) == 1 then
-        M.load(k)
-        -- exactly match project directories
-      elseif config.autodetect == "exact" and v.path == cwd then
-        M.load(k)
-      end
+      if in_dir(v.path, config.autodetect) then M.load(k) end
     end
   end
 end

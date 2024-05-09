@@ -198,10 +198,9 @@ See the example below for usage
 local telescope = require("telescope")
 
 -- load the extension with telescope
-telescope.load_extension("nvim-manager")
+telescope.load_extension("projects")
 
--- then access the function with telescope.extensions["nvim-mangager"].projects
+-- then access the function with telescope.extensions.projects.projects
 -- here we make <leader>fp (find project) open the picker
-vim.keymap.set("n", "<leader>fp",
-    telescope.extensions["nvim-manager"].projects, {})
+vim.keymap.set("n", "<leader>fp", telescope.extensions.projects.projects, {})
 ```
