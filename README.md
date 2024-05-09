@@ -25,14 +25,14 @@ by simirian
 - [x] pick from memorized projects with telescope
 - [ ] new project templates with lua and scripts
 - [x] automatically recognize project direcotries and load workspaces
-- [ ] cd to a project dir when remotely opening a directory (`nvim ~/sournce/project/`)
+- [x] cd to a project dir when remotely opening a directory (`nvim ~/sournce/project/`)
 
 ### Misc todo
 
 - [ ] vim helpfile
 - [ ] configuration
     - [x] guide in README
-    - [ ] lots of options
+    - [x] lots of options
 - [x] vim command api
     - [x] projects commands
     - [x] workspaces commands
@@ -177,10 +177,14 @@ This function takes a table of options with the following default values:
       .. "projects.json",
 
   --- Command to use to move to a project directory.
-  --- @type string|fun()
+  --- @type string|fun(path: string)
   cd_command = "cd",
 
-  --- How to autodetect projects when entering neovim.
+  --- Should vim cd to the first file argument?
+  --- @type boolean
+  arg_cd = true,
+
+  --- How to autodetect projects when entering neovim. Occurs after atg_cd.
   ---   `false` to not autodetect.
   ---   `"within"` to detect any directory within a saved project.
   ---   `"exact"` to detect exactly a saved project directory.

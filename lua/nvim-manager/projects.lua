@@ -10,10 +10,14 @@ local config = {
       .. "projects.json",
 
   --- Command to use to move to a project directory.
-  --- @type string|fun()
+  --- @type string|fun(path: string)
   cd_command = "cd",
 
-  --- How to autodetect projects when entering neovim.
+  --- Should vim cd to the first file argument?
+  --- @type boolean
+  arg_cd = true,
+
+  --- How to autodetect projects when entering neovim. Occurs after atg_cd.
   ---   `false` to not autodetect.
   ---   `"within"` to detect any directory within a saved project.
   ---   `"exact"` to detect exactly a saved project directory.
@@ -25,6 +29,37 @@ local config = {
 --- @type { string: table }
 local projects = {}
 -- projects[name] = { path = "/...", workspaces = { "name" } }
+
+--- Takes a directory and returns if the current file is in that directory.
+--- @param dirname string The directory path to check.
+--- @param mode? "within"|"exact" The mode to search for the file
+--- @return boolean contained
+local function in_dir(dirname, mode)
+  local fargs = vim.fn.argv()
+  local cwd = ""
+  -- if there was a file argument provided, then we use that as our root test
+  if fargs[1] then
+    cwd = vim.fs.normalize(vim.fn.fnamemodify(fargs[1], ":p"))
+  else
+    cwd = vim.fs.normalize(vim.fn.getcwd())
+  end
+  dirname = vim.fs.normalize(dirname)
+  mode = mode or "within"
+
+  return (mode == "within" and cwd:find(dirname, 1, true) == 1)
+      or (mode == "exact" and dirname == cwd)
+end
+
+--- Changes the vim directory to the specified path with the user's configured
+---   cd command.
+--- @param path string The path to move to.
+local function cd(path)
+  if type(config.cd_command) == "string" then
+    vim.cmd(config.cd_command .. " " .. path)
+  elseif type(config.cd_command) == "function" then
+    config.cd_command(path)
+  end
+end
 
 local M = {}
 
@@ -68,11 +103,7 @@ function M.load(name)
   -- otherwise we try to load the project by cd-ing to the path and loading its
   --   workspaces
   local project = projects[name]
-  if type(config.cd_command) == "function" then
-    config.cd_command()
-  else
-    vim.cmd(config.cd_command .. " " .. project.path)
-  end
+  cd(project.path)
   for _, ws_name in ipairs(project.workspaces) do
     WS.activate(ws_name)
   end
@@ -106,7 +137,7 @@ function M.save()
   return save_data()
 end
 
---- Remove a project from the list of saved projects. This WILL NOT delete the
+--- Remove a project from the list of saved projects. This will NOT delete the
 ---   project from your hard drive.
 --- @param name string The name of the project to delete.
 --- @return boolean success
@@ -115,6 +146,8 @@ function M.remove(name)
   return save_data()
 end
 
+--- List all of the saved projects.
+--- @return table projects
 function M.list()
   if not projects and not load_data() then return {} end
   return vim.tbl_keys(projects)
@@ -161,19 +194,6 @@ local commands = {
   },
 }
 
---- Takes a directory and returns if the current file is in that directory.
---- @param dirname string The directory path to check.
---- @param mode? "within"|"exact" The mode to search for the file
---- @return boolean contained
-local function in_dir(dirname, mode)
-  local cwd = vim.fs.normalize(vim.fn.getcwd())
-  dirname = vim.fs.normalize(dirname)
-  mode = mode or "within"
-
-  return (mode == "within" and cwd:find(dirname, 1, true) == 1)
-      or (mode == "exact" and dirname == cwd)
-end
-
 --- Sets up global project settings.
 --- @param opts? table
 function M.setup(opts)
@@ -185,6 +205,13 @@ function M.setup(opts)
     local copts = vim.deepcopy(v)
     table.remove(copts, 1)
     vim.api.nvim_create_user_command(k, v[1], copts)
+  end
+
+  -- if launched with a file argument and the user has it configured, cd to
+  --   that file's directory
+  local fargs = vim.fn.argv()
+  if config.arg_cd and fargs[1] then
+    cd(vim.fn.fnamemodify(fargs[1], ":p:h"))
   end
 
   -- autodetect based on config setting
