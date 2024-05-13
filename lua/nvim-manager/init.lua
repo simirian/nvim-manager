@@ -1,11 +1,14 @@
 -- simirian's NeoVim manager
 
-local M = { }
-
-function M.setup(opts)
-  ManagerOpts = vim.tbl_deep_extend("force", ManagerOpts, opts or { })
-  require("nvim-manager.workspaces").enable()
-end
-
-return M
-
+return setmetatable({}, {
+  __index = function(t, k)
+    if k == "workspaces" then
+      t[k] = require("nvim-manager.workspaces")
+      return t[k]
+    end
+    if k == "projects" then
+      t[k] = require("nvim-manager.projects")
+      return t[k]
+    end
+  end,
+})
