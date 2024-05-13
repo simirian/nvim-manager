@@ -30,24 +30,26 @@ local config = {
 local projects = {}
 -- projects[name] = { path = "/...", workspaces = { "name" } }
 
---- Takes a directory and returns if the current file is in that directory.
+--- Takes a directory and returns if our cwd is in that directory.
 --- @param dirname string The directory path to check.
 --- @param mode? "within"|"exact" The mode to search for the file
 --- @return boolean contained
 local function in_dir(dirname, mode)
-  local fargs = vim.fn.argv()
-  local cwd = ""
-  -- if there was a file argument provided, then we use that as our root test
-  if fargs[1] then
-    cwd = vim.fs.normalize(vim.fn.fnamemodify(fargs[1], ":p"))
-  else
-    cwd = vim.fs.normalize(vim.fn.getcwd())
-  end
-  dirname = vim.fs.normalize(dirname)
-  mode = mode or "within"
+  local cwd = vim.fn.getcwd()
+  -- this will be changed immediately, so we can leave it empty
+  local old = ""
 
-  return (mode == "within" and cwd:find(dirname, 1, true) == 1)
-      or (mode == "exact" and dirname == cwd)
+  repeat
+    -- if the paths match, then we are in the dir
+    if cwd == dirname then return true end
+
+    -- keep track of the old dir so we can end when there are no changes
+    old = cwd
+    -- remove the last file/directory in the path, so it is still valid
+    cwd = vim.fn.fnamemodify(cwd, ":h")
+  until cwd == old
+
+  return false
 end
 
 --- Changes the vim directory to the specified path with the user's configured

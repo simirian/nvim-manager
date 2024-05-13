@@ -1,7 +1,6 @@
 # NeoVim Manager
 
 Project and workspace manager for NeoVim<br>
-
 by simirian
 
 ## Features
