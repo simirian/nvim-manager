@@ -71,7 +71,10 @@ Access the projects API through lua with `require("nvim-manger.projects")`:
 #### Setup
 
 To enable workspaces you must run `require("nvim-manager.workspaces").setup()`.
-This function takes a table as arguments with the following default values:
+This function takes a table of options to set up global workspace settings.
+
+By default, `opts.lsp_setup()` uses nvim-cmp and nvim-lspconfig to set up language servers and code completion.
+This function can be overwritten, and will be passed each language server config that you set up in your workspace specs.
 
 ```lua
 {
@@ -149,6 +152,11 @@ local workspace = {
   --- List of other workspaaces that this one will activate.
   --- @type string[]
   implies = { "workspace name" },
+
+  --- Should the listed language servers automatically be set up by `lsp_setup`?
+  --- Defaults to true, set to false to disable this feature
+  --- @type boolean
+  setup_lsp = true,
 
   --- List of lsp servers to configure and install.
   --- @type { string: table }

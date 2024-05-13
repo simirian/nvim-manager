@@ -104,7 +104,7 @@ function M.activate(ws_name)
   if ws_opts.activate then ws_opts.activate() end
 
   -- activate lsp
-  if ws_opts.lsp then
+  if ws_opts.lsp and ws_opts.setup_lsp ~= false then
     for lsp_name, lsp_opts in pairs(ws_opts.lsp) do
       config.lsp_setup(lsp_name, lsp_opts)
     end
