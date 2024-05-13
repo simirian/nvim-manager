@@ -49,6 +49,8 @@ Access the workspaces API in lua with `require("nvim-manager.workspaces")`:
 | `enable` | `WorkspaceEnable` | `"all"`\|`"detect"`\|none | Enables all workspaces, or enables workspaces based on their detector functions. |
 | `list_configured` | `WorkspaceListConf` | none | Returns (the command prints) a list of configured workspace names. |
 | `list_active` | `WorkspaceListActive` | none | Returns (the command prints) a list of the active workspace names. |
+| `ts_files` | none | none | Returns a list of every file type that all modules use, mainly for use with treesitter's `ensure_installed` option. |
+| `lsps` | none | none | Returns a list of language servers that need to be installed with the `mason_lspconfig` (assuming that is your installation method). |
 
 ### Projects
 

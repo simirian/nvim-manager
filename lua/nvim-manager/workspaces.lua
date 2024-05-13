@@ -38,51 +38,6 @@ local config = {
   end
 }
 
---- Workspace spec.
---[[
-local ws = {
-  --- Detector function that decides if the workspace should be enabled.
-  --- @type fun(): boolean
-  detector = function() return true end,
-
-  --- Filetypes for treesitter to install.
-  --- Run TSInstall <Tab> to see completion options for filetypes.
-  --- @type string[]
-  filetypes = { "cpp" },
-
-  --- Keymaps to bind.
-  --- @type table[]
-  maps = {
-    -- see :h vim.keymap.set : options are passed directly
-    {
-      mode = "n",
-      lhs = "f5",
-      rhs = "!make<cr>",
-      opts = {},
-    },
-  },
-
-  --- Run when a workspace is enabled.
-  --- @type fun()
-  activate = function() end,
-
-  --- List of other workspaaces that this one will activate.
-  --- @type string[]
-  implies = { "workspace name" },
-
-  --- List of lsp servers to configure and install.
-  --- @type { string: table }
-  lsp = {
-    ["lspconfig_name"] = {
-      lspconfig_settings = "...",
-      settings = {
-        lsp_settings = "...",
-      },
-    },
-  },
-}
-]]
-
 --- Workspaces cache.
 --- @type { string: table }
 local workspaces = {}
@@ -203,6 +158,44 @@ end
 --- @return string[] workspaces
 function M.list_active()
   return vim.deepcopy(active_workspaces)
+end
+
+--- A list of all filetypes needed for treesitter parsers.
+--- @return table
+function M.ts_fts()
+  -- make sure workspaces are loaded
+  if not next(workspaces) and not load_data() then return {} end
+
+  local fts = {}
+
+  for _, ws in pairs(workspaces) do
+    for _, ft in ipairs(ws.filetypes) do
+      if not vim.tbl_contains(fts, ft) then
+        table.insert(fts, ft)
+      end
+    end
+  end
+
+  return fts
+end
+
+--- A list of language servers needed for all workspaces to function.
+--- @return string[] workspaces
+function M.lsps()
+  -- make sure workspaces are loaded
+  if not next(workspaces) and not load_data() then return {} end
+
+  local servers = {}
+
+  for _, ws in pairs(workspaces) do
+    for server, _ in pairs(ws.lsp) do
+      if not vim.tbl_contains(servers, server) then
+        table.insert(servers, server)
+      end
+    end
+  end
+
+  return servers
 end
 
 --- Table of commands for this module.
