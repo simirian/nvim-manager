@@ -78,20 +78,26 @@ function M.activate(ws_name)
   -- make sure workspaces have been loaded
   if not next(workspaces) then load_data() end
 
+  -- make sure we haven't already activated the workspace
+  if vim.tbl_contains(active_workspaces, ws_name) then
+    -- TODO: this will trigger on dependancy loops, is that ok?
+    vim.notify("workspaces: workspace already activated " .. ws_name,
+      vim.log.levels.WARN)
+    return false
+  end
+
   -- make sure the workspace exists
-  if not workspaces[ws_name] then
+  local ws_opts = workspaces[ws_name]
+  if not ws_opts then
     vim.notify("workspaces: failed to load workspace " .. ws_name,
       vim.log.levels.ERROR)
     return false
   end
 
-  local ws_opts = workspaces[ws_name]
-
   -- record that this workspace is now active
-  if not vim.tbl_contains(active_workspaces, ws_name) then
-    table.insert(active_workspaces, ws_name)
-  end
+  table.insert(active_workspaces, ws_name)
 
+  -- add workspaces that this one requires
   if ws_opts.implies then
     for _, rq_name in ipairs(ws_opts.implies) do
       if not vim.tbl_contains(active_workspaces, rq_name) then
@@ -116,6 +122,39 @@ function M.activate(ws_name)
       vim.keymap.set(
         kb_tbl.mode or "n", kb_tbl.lhs, kb_tbl.rhs, kb_tbl.opts or {}
       )
+    end
+  end
+
+  return true
+end
+
+--- Deactivates the named workspace and removes keymaps and commands.
+--- @param ws_name string The name of the workspace to deactivate.
+--- @return boolean success
+function M.deactivate(ws_name)
+  if not next(workspaces) then load_data() end
+
+  -- make sure the workspace was actually activated
+  if not vim.tbl_contains(active_workspaces, ws_name) then
+    vim.notify("Manager: attempt to deactivate inactive workspace: " .. ws_name,
+      vim.log.levels.ERROR)
+    return false
+  end
+
+  -- a workspace can only be activated if it is loaded, so this should be fine
+  local ws_opts = workspaces[ws_name]
+
+  -- TODO: what do we do about dependencies?
+
+  -- run deactivation callback
+  if ws_opts.deactivate then ws_opts.deactivate() end
+
+  -- unsetup lsp???
+
+  -- unset maps
+  if ws_opts.maps then
+    for _, kb_tbl in ipairs(ws_opts.maps) do
+      vim.keymap.del(kb_tbl.mode, kb_tbl.lhs, kb_tbl.opts)
     end
   end
 
@@ -210,6 +249,17 @@ local commands = {
     nargs = 1,
     complete = function()
       return M.list_configured()
+    end,
+  },
+
+  --- Deactivate a workspace.
+  WorkspaceDeactivate = {
+    function(opts)
+      M.deactivate(opts.fargs[1])
+    end,
+    nargs = 1,
+    complete = function()
+      return M.list_active()
     end,
   },
 

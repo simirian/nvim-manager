@@ -35,7 +35,8 @@ local projects = {}
 --- @param mode? "within"|"exact" The mode to search for the file
 --- @return boolean contained
 local function in_dir(dirname, mode)
-  local cwd = vim.fn.getcwd()
+  local cwd = vim.fs.normalize(vim.fn.getcwd())
+  if mode == "exact" then return cwd == dirname end
   -- this will be changed immediately, so we can leave it empty
   local old = ""
 
@@ -100,6 +101,11 @@ function M.load(name)
     vim.notify("projects: project " .. name .. " does not exist",
       vim.log.levels.ERROR)
     return
+  end
+
+  -- attempt to deactivate active workspaces
+  for _, ws_name in ipairs(WS.list_active()) do
+    WS.deactivate(ws_name)
   end
 
   -- otherwise we try to load the project by cd-ing to the path and loading its

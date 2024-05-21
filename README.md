@@ -15,23 +15,27 @@ by simirian
     - [x] keymaps
     - [ ] commands
 - [ ] disable these settings when leaving the workspace
+    - [x] keymaps
+    - [ ] commands
 - [x] automatically configure language servers by workspace
 - [x] workspaces can imply other workspaces to automatically load each other
 
 ### Projects
 
 - [x] memorize project directories and active workspaces
+    - [x] seamlessly switch workspaces when switching projects
 - [x] pick from memorized projects with telescope
 - [ ] new project templates with lua and scripts
 - [x] automatically recognize project direcotries and load workspaces
-- [x] cd to a project dir when remotely opening a directory (`nvim ~/sournce/project/`)
+- [x] cd to a project dir when remotely opening a directory
+  (`nvim ~/sournce/project/`)
 
 ### Misc todo
 
 - [ ] vim helpfile
 - [ ] configuration
     - [x] guide in README
-    - [x] lots of options
+    - [ ] lots of options
 - [x] vim command api
     - [x] projects commands
     - [x] workspaces commands
@@ -46,6 +50,7 @@ Access the workspaces API in lua with `require("nvim-manager.workspaces")`:
 | --- | --- | --- | --- |
 | `setup` | none | `opts`*?* | Loads workspace modules and sets up user config. |
 | `activate` | `WorkspaceActivate` | `ws_name` | Activate a workspace by name. |
+| `deactivate` | `WorkspaceDeactivate` | `ws_name` | Deactivate a workspace by name. |
 | `enable` | `WorkspaceEnable` | `"all"`\|`"detect"`\|none | Enables all workspaces, or enables workspaces based on their detector functions. |
 | `list_configured` | `WorkspaceListConf` | none | Returns (the command prints) a list of configured workspace names. |
 | `list_active` | `WorkspaceListActive` | none | Returns (the command prints) a list of the active workspace names. |
@@ -73,8 +78,10 @@ Access the projects API through lua with `require("nvim-manger.projects")`:
 To enable workspaces you must run `require("nvim-manager.workspaces").setup()`.
 This function takes a table of options to set up global workspace settings.
 
-By default, `opts.lsp_setup()` uses nvim-cmp and nvim-lspconfig to set up language servers and code completion.
-This function can be overwritten, and will be passed each language server config that you set up in your workspace specs.
+By default, `opts.lsp_setup()` uses nvim-cmp and nvim-lspconfig to set up
+language servers and code completion. This function can be overwritten, and
+will be passed each language server config that you set up in your workspace
+specs.
 
 ```lua
 {
@@ -117,10 +124,13 @@ This function can be overwritten, and will be passed each language server config
 
 #### Workspace Spec
 
-The workspace plugin is useless without any configured workspaces.
-If running setup with a table of workspaces, you should include each workspace spec should be included in a list like table.
-If running setup with `workspaces = "MODULE_NAME"` then there should be a folder in your neovim configuration `nvim/lua/MODULE_NAME/`, which contains workspace modules that each return a workspace spec to be loaded.
-An example workspace specification with all options filled out with stubs looks like the following:
+The workspace plugin is useless without any configured workspaces. If running
+setup with a table of workspaces, you should include each workspace spec should
+be included in a list like table. If running setup with `workspaces =
+"MODULE_NAME"` then there should be a folder in your neovim configuration
+`nvim/lua/MODULE_NAME/`, which contains workspace modules that each return a
+workspace spec to be loaded. An example workspace specification with all
+options filled out with stubs looks like the following:
 
 ```lua
 local workspace = {
@@ -149,6 +159,11 @@ local workspace = {
   --- @type fun()
   activate = function() end,
 
+  --- Run when a workspace is deactivated.
+  --- Intended to revert any changes made by the activate function above.
+  --- @type fun()
+  deactivate = function() end,
+
   --- List of other workspaaces that this one will activate.
   --- @type string[]
   implies = { "workspace name" },
@@ -175,8 +190,8 @@ local workspace = {
 
 #### Setup
 
-To enable projects you must run `require("nvim-manager.projects).setup()`.
-This function takes a table of options with the following default values:
+To enable projects you must run `require("nvim-manager.projects).setup()`. This
+function takes a table of options with the following default values:
 
 ```lua
 {
@@ -204,8 +219,8 @@ This function takes a table of options with the following default values:
 
 #### Telescope
 
-This plugin provides an *nvim-telescope* extension.
-See the example below for usage
+This plugin provides an *nvim-telescope* extension. See the example below for
+usage
 
 ```lua
 local telescope = require("telescope")
