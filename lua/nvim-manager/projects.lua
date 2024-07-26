@@ -103,10 +103,7 @@ function M.load(name)
     return
   end
 
-  -- attempt to deactivate active workspaces
-  for _, ws_name in ipairs(WS.list_active()) do
-    WS.deactivate(ws_name)
-  end
+  WS.disable("all")
 
   -- otherwise we try to load the project by cd-ing to the path and loading its
   --   workspaces

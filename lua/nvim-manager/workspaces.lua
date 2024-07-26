@@ -1,315 +1,210 @@
 -- simirian's NeoVim manager
 -- workspace manager
 
-local config = {
-  --- Either a table of workspace specs or a module name that contains workspace
-  ---   modules. If a string NAME, workspaces will look for `NAME/*.lua`.
-  --- @type string|{ string: table }
-  workspaces = "workspaces",
-
-  --- How workspaces should be auto-enabled.
-  ---   `false` will prevent auto enabling of workspaces.
-  ---   `"all"` will enable all workspaces immediately.
-  ---   `"detect"` will enable workspaces based on their activation functions.
-  --- @type false|"all"|"detect"
-  auto_enable = false,
-
-  --- Function to install / enable language servers.
-  --- @type fun(lsp_name: string, lsp_opts: table)
-  lsp_setup = function(lsp_name, lsp_opts)
-    lsp_opts = lsp_opts or {}
-
-    -- try to load lspconfig
-    local lspok, lspcfg = pcall(require, "lspconfig")
-    if not lspok then
-      vim.notify("workspace: lsp setup failed, lspconfig not loaded",
-        vim.log.levels.ERROR)
-      return
-    end
-
-    -- try to add nvim-cmp capabilities
-    local cmpok, cmplsp = pcall(require, "cmp_nvim_lsp")
-    if cmpok then
-      lsp_opts.capabilities = cmplsp.default_capabilities()
-    end
-
-    -- set up the language server
-    lspcfg[lsp_name].setup(lsp_opts)
-  end
-}
-
---- Workspaces cache.
---- @type { string: table }
-local workspaces = {}
+local config = require("nvim-manager.workspaces.config")
+local rocfg = config.get()
 
 --- List of active workspaces.
 --- @type string[]
-local active_workspaces = {}
+local ws_active = {}
+
+local H = {}
+
+--- Checks if a workspace is active or not.
+--- @param ws_name string The name of the workspace to check.
+--- @return boolean
+function H.is_active(ws_name)
+  return vim.tbl_contains(ws_active, ws_name)
+end
+
+--- Checks if a workspace exists
+--- @param ws_name string The name of the workspace to check.
+--- @return boolean
+function H.exists(ws_name)
+  return config.ws_specs[ws_name] ~= nil
+end
+
+--- Lists all configured workspaces
+--- @return string[]
+function H.list_configured()
+  return vim.tbl_keys(config.ws_specs)
+end
+
+--- Lists all active workspaces
+--- @return string[]
+function H.list_active()
+  return vim.deepcopy(ws_active)
+end
+
+--- Lists all inactive workspaces.
+--- @return string[]
+function H.list_inactive()
+  local list = {}
+  for k, _ in pairs(config.ws_specs) do
+    if not vim.tbl_contains(ws_active, k) then
+      table.insert(list, k)
+    end
+  end
+  return list
+end
 
 local M = {}
-
---- Loads workspaces from user config.
-local function load_data()
-  -- if the user provided a table directly
-  if type(config.workspaces) == "table" then
-    workspaces = vim.deepcopy(config.workspaces --[[ @as { string: table }]])
-    return
-  end
-
-  -- get files in workspace path
-  local files = vim.api.nvim_get_runtime_file("lua/"
-    .. config.workspaces .. "/*.lua", true)
-
-  for _, file in ipairs(files) do
-    -- convert them to workspace and module names
-    local basename = vim.fs.basename(file)
-    local wsname = basename:sub(0, -5)
-    local module = config.workspaces .. "." .. wsname
-
-    -- require them into workspaces cache
-    workspaces[wsname] = require(module)
-  end
-end
+local commands = {}
 
 --- Activates the given workspace.
 --- @param ws_name string The workspace name.
---- @return boolean success
 function M.activate(ws_name)
-  -- make sure workspaces have been loaded
-  if not next(workspaces) then load_data() end
-
-  -- make sure we haven't already activated the workspace
-  if vim.tbl_contains(active_workspaces, ws_name) then
-    -- TODO: this will trigger on dependancy loops, is that ok?
-    vim.notify("workspaces: workspace already activated " .. ws_name,
-      vim.log.levels.WARN)
-    return false
+  if not H.exists(ws_name) then
+    vim.notify("nvim-manager.workspaces:\n    " ..
+      "Tried to load unconfigured workspace: " .. ws_name, vim.log.levels.ERROR)
+    return
   end
 
-  -- make sure the workspace exists
-  local ws_opts = workspaces[ws_name]
-  if not ws_opts then
-    vim.notify("workspaces: failed to load workspace " .. ws_name,
-      vim.log.levels.ERROR)
-    return false
+  if H.is_active(ws_name) then
+    vim.notify("nvim-manager.workspaces:\n    Workspace already activated: "
+      .. ws_name, vim.log.levels.WARN)
+    return
   end
 
-  -- record that this workspace is now active
-  table.insert(active_workspaces, ws_name)
+  table.insert(ws_active, ws_name)
+  local ws_spec = config.ws_specs[ws_name]
+  if ws_spec.activate then ws_spec.activate() end
 
-  -- add workspaces that this one requires
-  if ws_opts.implies then
-    for _, rq_name in ipairs(ws_opts.implies) do
-      if not vim.tbl_contains(active_workspaces, rq_name) then
-        M.activate(rq_name)
-      end
-    end
-  end
-
-  -- run activation function
-  if ws_opts.activate then ws_opts.activate() end
-
-  -- activate lsp
-  if ws_opts.lsp and ws_opts.setup_lsp ~= false then
-    for lsp_name, lsp_opts in pairs(ws_opts.lsp) do
-      config.lsp_setup(lsp_name, lsp_opts)
+  if ws_spec.lsp and ws_spec.setup_lsp ~= false then
+    for lsp_name, lsp_opts in pairs(ws_spec.lsp) do
+      rocfg.lsp_setup(lsp_name, lsp_opts)
     end
   end
 
   -- set mappings
-  if ws_opts.maps then
-    for _, kb_tbl in ipairs(ws_opts.maps) do
-      vim.keymap.set(
-        kb_tbl.mode or "n", kb_tbl.lhs, kb_tbl.rhs, kb_tbl.opts or {}
-      )
+  if ws_spec.maps then
+    for _, map in ipairs(ws_spec.maps) do
+      vim.keymap.set(map.mode or "n", map.lhs, map.rhs, map.opts or {})
     end
   end
-
-  return true
 end
+
+--- Activate a workspace.
+commands.WorkspaceActivate = {
+  function(opts)
+    M.activate(opts.fargs[1])
+  end,
+  nargs = 1,
+  complete = function()
+    return H.list_inactive()
+  end,
+}
 
 --- Deactivates the named workspace and removes keymaps and commands.
 --- @param ws_name string The name of the workspace to deactivate.
---- @return boolean success
 function M.deactivate(ws_name)
-  if not next(workspaces) then load_data() end
-
-  -- make sure the workspace was actually activated
-  if not vim.tbl_contains(active_workspaces, ws_name) then
-    vim.notify("Manager: attempt to deactivate inactive workspace: " .. ws_name,
+  if not H.is_active(ws_name) then
+    vim.notify("nvim-manager.workspaces:\n    "
+      .. "Attempt to deactivate inactive workspace: " .. ws_name,
       vim.log.levels.ERROR)
-    return false
+    return
   end
 
-  -- a workspace can only be activated if it is loaded, so this should be fine
-  local ws_opts = workspaces[ws_name]
+  for i, v in ipairs(ws_active) do
+    if v == ws_name then table.remove(ws_active, i) end
+  end
+  local ws_spec = config.ws_specs[ws_name]
+  if ws_spec.deactivate then ws_spec.deactivate() end
 
-  -- TODO: what do we do about dependencies?
-
-  -- run deactivation callback
-  if ws_opts.deactivate then ws_opts.deactivate() end
-
-  -- unsetup lsp???
-
-  -- unset maps
-  if ws_opts.maps then
-    for _, kb_tbl in ipairs(ws_opts.maps) do
-      vim.keymap.del(kb_tbl.mode, kb_tbl.lhs, kb_tbl.opts)
+  if ws_spec.maps then
+    for _, map in ipairs (ws_spec.maps) do
+      vim.keymap.del(map.mode, map.lhs, map.opts)
     end
   end
-
-  return true
 end
+
+--- Deactivate a workspace.
+commands.WorkspaceDeactivate = {
+  function(opts)
+    M.deactivate(opts.fargs[1])
+  end,
+  nargs = 1,
+  complete = function()
+    return H.list_active()
+  end,
+}
 
 --- Enables all workspaces, or enables them based on their detector functions.
 --- @param opts? "detect"|"all" How to enable workspaces.
 function M.enable(opts)
-  -- make sure workspaces are loaded
-  if not next(workspaces) then load_data() end
   opts = opts or "detect"
 
   if opts == "detect" then
-    for ws_name, ws_opts in pairs(workspaces) do
-      if ws_opts.detector and ws_opts.detector() then
+    for ws_name, ws_spec in pairs(config.ws_specs) do
+      if ws_spec.detector and ws_spec.detector() then
         M.activate(ws_name)
       end
     end
   elseif opts == "all" then
-    for ws_name, _ in pairs(workspaces) do
+    for ws_name, _ in pairs(config.ws_specs) do
       M.activate(ws_name)
     end
-  else
-    vim.notify("Workspaces: unrecognized enable option " .. opts
-      .. "\nto load a single workspace call `activate`",
-      vim.log.levels.ERROR)
   end
 end
 
---- Returns a list of configured workspaces.
---- @return string[] workspaces
-function M.list_configured()
-  -- make sure workspaces are loaded
-  if not next(workspaces) then load_data() end
-  return vim.tbl_keys(workspaces)
+--- Disables workspaces based on the given option
+--- @param opts? "all" How to disable workspaces.
+function M.disable(opts)
+  opts = opts or "all"
+  for _, ws_name in ipairs(ws_active) do
+    M.deactivate(ws_name)
+  end
 end
 
---- Returns a list of the active workspaces.
---- @return string[] workspaces
-function M.list_active()
-  return vim.deepcopy(active_workspaces)
-end
+--- Enable workspaces in bulk.
+commands.WorkspaceEnable = {
+  function(opts)
+    M.enable(opts.fargs[1])
+  end,
+  nargs = 1,
+  complete = function()
+    return { "all", "detect" }
+  end,
+}
 
 --- A list of all filetypes needed for treesitter parsers.
+--- TODO: this should not exist, remove and place elsewhere!
 --- @return table
 function M.ts_fts()
-  -- make sure workspaces are loaded
-  if not next(workspaces) and not load_data() then return {} end
-
   local fts = {}
-
-  for _, ws in pairs(workspaces) do
+  for _, ws in pairs(config.ws_specs) do
     for _, ft in ipairs(ws.filetypes) do
       if not vim.tbl_contains(fts, ft) then
         table.insert(fts, ft)
       end
     end
   end
-
   return fts
 end
 
 --- A list of language servers needed for all workspaces to function.
 --- @return string[] workspaces
 function M.lsps()
-  -- make sure workspaces are loaded
-  if not next(workspaces) and not load_data() then return {} end
-
   local servers = {}
-
-  for _, ws in pairs(workspaces) do
+  for _, ws in pairs(config.ws_specs) do
     for server, _ in pairs(ws.lsp) do
       if not vim.tbl_contains(servers, server) then
         table.insert(servers, server)
       end
     end
   end
-
   return servers
 end
 
---- Table of commands for this module.
---- @type { string: table }
-local commands = {
-
-  --- Activate a workspace.
-  WorkspaceActivate = {
-    function(opts)
-      M.activate(opts.fargs[1])
-    end,
-    nargs = 1,
-    complete = function()
-      return M.list_configured()
-    end,
-  },
-
-  --- Deactivate a workspace.
-  WorkspaceDeactivate = {
-    function(opts)
-      M.deactivate(opts.fargs[1])
-    end,
-    nargs = 1,
-    complete = function()
-      return M.list_active()
-    end,
-  },
-
-  --- Enable workspaces in bulk.
-  WorkspaceEnable = {
-    function(opts)
-      if #opts.fargs > 1 then
-        M.enable(opts.fargs)
-      else
-        M.enable(opts.fargs[1])
-      end
-    end,
-    nargs = "+",
-    complete = function()
-      return { "all", "detect" }
-    end,
-  },
-
-  --- List configured workspaces.
-  WorkspaceListConf = {
-    function()
-      for _, v in pairs(M.list_configured()) do print(v) end
-    end,
-  },
-
-  --- List active workspaces.
-  WorkspaceListActive = {
-    function()
-      for _, v in ipairs(M.list_active()) do print(v) end
-    end,
-  },
+commands.WSCONF = {
+  function()
+    P(H.list_configured())
+  end,
 }
 
---- Sets up global workspace settings.
---- @param opts? table
-function M.setup(opts)
-  config = vim.tbl_deep_extend("force", config, opts or {})
-  load_data()
-
-  -- load commands
-  for k, v in pairs(commands) do
-    local copts = vim.deepcopy(v)
-    table.remove(copts, 1)
-    vim.api.nvim_create_user_command(k, v[1], copts)
-  end
-
-  -- enable workspaces based on config
-  if config.auto_enable then
-    M.enable(config.auto_enable)
-  end
+for k, v in pairs(commands) do
+  local fn = table.remove(v, 1)
+  vim.api.nvim_create_user_command(k, fn, v)
 end
 
 return M
