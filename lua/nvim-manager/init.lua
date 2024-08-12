@@ -1,14 +1,17 @@
 -- simirian's NeoVim manager
+-- configuration and entry point
 
-return setmetatable({}, {
-  __index = function(t, k)
-    if k == "workspaces" then
-      t[k] = require("nvim-manager.workspaces")
-      return t[k]
-    end
-    if k == "projects" then
-      t[k] = require("nvim-manager.projects")
-      return t[k]
-    end
-  end,
-})
+local M = {}
+
+--- Sets up global settings.
+--- @param opts? ManagerConfig Desired configuration.
+function M.setup(opts)
+  opts = opts or {}
+  local workspaces = opts.workspaces or {}
+  opts.workspaces = nil
+  require("nvim-manager.config").setup(opts)
+  require("nvim-manager.workspaces").setup(workspaces)
+  require("nvim-manager.projects").setup()
+end
+
+return M

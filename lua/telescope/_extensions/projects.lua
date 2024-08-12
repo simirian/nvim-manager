@@ -17,7 +17,9 @@ local function pproj(opts)
   opts = opts or {}
 
   pickers.new(opts, {
-    finder = finders.new_table { results = projects.list() },
+    finder = finders.new_table {
+      results = vim.tbl_keys(projects.list()),
+    },
     previwer = false,
     sorter = config.generic_sorter(opts),
     attach_mappings = function(prompt_bufnr)
