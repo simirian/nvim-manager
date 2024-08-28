@@ -6,9 +6,17 @@ local ws = require("nvim-manager.workspaces")
 
 local vfn = vim.fn
 local vfs = vim.fs
+local uv = vim.loop
+
+--- This class represents project data.
+--- @class Manager.Project
+--- The path to the project.
+--- @field path string
+--- List of workspaces to activate when entering this project.
+--- @field workspaces string[]
 
 --- List of saved projects.
---- @type { [string]: table }
+--- @type { [string]: Manager.Project }
 local projects = {}
 
 --- The currently active project.
@@ -92,7 +100,7 @@ commands.ProjectLoad = {
 
 --- Save the current nvim instance as a project.
 function M.save()
-  local path = vfn.getcwd()
+  local path = uv.cwd()
   local name = vfs.basename(path)
   local active = ws.list("active")
   projects[name] = { path = path, workspaces = active }
@@ -127,7 +135,7 @@ function M.list()
 end
 
 commands.ProjectList = {
-  function(_) print(vim.inspect(vim.tbl_keys(projects))) end,
+  function(_) vim.print(vim.tbl_keys(projects)) end,
   desc = "Lists the saved projects.",
 }
 
@@ -142,8 +150,32 @@ function M.setup()
 
   if ucfg.arg_cd then
     local arg_path = vfs.normalize(vfn.argv(0) --[[ @as string ]] or "")
-    if arg_path ~= "" and vfs.basename(arg_path) ~= "COMMIT_EDITMSG" then
-      vim.cmd.cd(arg_path)
+    if arg_path ~= "" then
+      local stat = uv.fs_lstat(arg_path)
+      if stat and stat.type == "directory" then
+        vim.cmd.cd(arg_path)
+      else
+        vim.cmd.cd(vfn.fnamemodify(arg_path, ":h"))
+      end
+    end
+  end
+
+  if ucfg.autodetect == "exact" or ucfg.autodetect == "within" then
+    local cwd = vfs.normalize(uv.cwd())
+    for name, project in pairs(projects) do
+      if project.path == cwd then
+        M.load(name)
+      end
+    end
+  end
+  if ucfg.autodetect == "within" then
+    local cwd = vfs.normalize(uv.cwd())
+    for parent in vfs.parents(cwd) do
+      for name, project in pairs(projects) do
+        if parent == project.path then
+          M.load(name)
+        end
+      end
     end
   end
 end

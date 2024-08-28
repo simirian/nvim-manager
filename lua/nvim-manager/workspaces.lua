@@ -1,6 +1,10 @@
 -- simirian's NeoVim manager
 -- workspace manager
 
+local vfs = vim.fs
+local vfn = vim.fn
+local lsp = vim.lsp
+
 --- List of configured workspaces
 --- @type { [string]: Manager.WSSpec }
 local ws_specs = {}
@@ -59,22 +63,23 @@ function M.activate(name)
           .. "Cannot start server without command."):format(name, lsp_name))
         ok = false
       end
+      if not lsp_opts.name then
+        lsp_opts.name = "ManagerLSP-" .. name
+      end
       if ok then
         if not lsp_opts.root_dir then
-          lsp_opts.root_dir = vim.fs.root(0, ".git")
-              or vim.fs.normalize(vim.fn.getcwd())
+          lsp_opts.root_dir = vfs.root(0, ".git")
+              or vfs.normalize(vfn.getcwd())
         end
         if type(lsp_opts.root_dir) == "function" then
           lsp_opts.root_dir = lsp_opts.root_dir()
         end
-        ---  field injected for easy shutdownn in deactivate()
-        --- @diagnostic disable-next-line: inject-field
-        lsp_opts.id = vim.lsp.start(lsp_opts)
         vim.api.nvim_create_autocmd("FileType", {
           group = gid,
           pattern = lsp_opts.filetypes,
           callback = function(event)
-            vim.lsp.buf_attach_client(event.buf, lsp_opts.id)
+            -- this shares language servers by name and root dir
+            lsp.start(lsp_opts)
           end,
         })
       end
@@ -109,10 +114,9 @@ function M.deactivate(name)
   local spec = ws_specs[name]
   if spec.deactivate then spec.deactivate() end
 
-  for _, lsp_opts in pairs(spec.lsp) do
-    --- field injected during activate()
-    --- @diagnostic disable-next-line: undefined-field
-    vim.lsp.stop_client(lsp_opts.id)
+  for _, server in ipairs(
+    lsp.get_clients{ name = "ManagerLSP-" .. name }) do
+    server.stop()
   end
   vim.api.nvim_del_augroup_by_name("ManagerLSP-" .. name)
 
@@ -192,7 +196,7 @@ function M.list(opts)
 end
 
 commands.WorkspaceList = {
-  function(opts) print(vim.inspect(vim.tbl_keys(M.list(opts.fargs[1])))) end,
+  function(opts) vim.print(vim.tbl_keys(M.list(opts.fargs[1]))) end,
   desc = "Lists configured workspaces.",
   nargs = "?",
   complete = function() return { "all", "active", "inactive" } end,

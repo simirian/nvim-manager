@@ -5,6 +5,10 @@ by simirian
 
 ## Features
 
+Nvim Manager is meant for power-users, and is designed to work best if you *read
+documentation*. This plugin is also designed for customizability, and the entire
+workspaces feature will not work out of the box.
+
 ### Workspaces
 
 - [ ] automatically detect workspaces on entering NeoVim
@@ -24,19 +28,21 @@ by simirian
     - [x] seamlessly switch workspaces when switching projects
 - [x] pick from memorized projects with telescope
 - [ ] new project templates with lua and scripts
-- [ ] automatically recognize project direcotries and load workspaces
+- [x] automatically recognize project direcotries and load workspaces
 - [x] cd to first opened file on command line (`nvim ~/source/project/`)
 
 ### Misc todo
 
 - [ ] vim helpfile
 - [ ] configuration
-    - [ ] guide in README
+    - [x] guide in README
 - [x] vim command api
-    - [x] projects commands
-    - [x] workspaces commands
 
 ## Usage
+
+All functions are well-documented and should work with autocompletion. There are
+also vim commands for every function listed below. If in doubt, read the source
+code, it's easy to find and every function and type is annotated.
 
 ### Workspaces
 
@@ -49,8 +55,6 @@ Access the workspaces API in lua with `require("nvim-manager.workspaces")`:
 | `enable()`     | Enables multiple workspaces based on the argument. |
 | `disable()`    | Disables all workspaces.                           |
 | `list()`       | Lists configured workspaces.                       |
-
-All of the commands are well-documented.
 
 ### Projects
 
