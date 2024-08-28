@@ -2,6 +2,7 @@
 -- projects manager
 
 local config = require("nvim-manager.config")
+local ucfg = config.user
 local ws = require("nvim-manager.workspaces")
 
 local vfn = vim.fn
@@ -36,19 +37,19 @@ function H.save_data()
   for _, project in pairs(projects) do
     project.path = vfs.normalize(project.path)
   end
-  if vfn.writefile({ vfn.json_encode(projects) }, config.project_path) == -1 then
-    H.error("Failed to save projects data to " .. config.project_path)
+  if vfn.writefile({ vfn.json_encode(projects) }, ucfg.project_path) == -1 then
+    H.error("Failed to save projects data to " .. ucfg.project_path)
   end
 end
 
 --- Loads the currently saved project data.
 function H.load_data()
-  if vfn.filereadable(config.project_path) == 0 then
-    vfn.writefile({ "{}" }, config.project_path)
+  if vfn.filereadable(ucfg.project_path) == 0 then
+    vfn.writefile({ "{}" }, ucfg.project_path)
   end
-  local readok, contents = pcall(vfn.readfile, config.project_path)
+  local readok, contents = pcall(vfn.readfile, ucfg.project_path)
   if not readok then
-    H.error("Failed to load project data file " .. config.project_path)
+    H.error("Failed to load project data file " .. ucfg.project_path)
     return
   end
   projects = vfn.json_decode(contents)

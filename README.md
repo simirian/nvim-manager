@@ -9,13 +9,13 @@ by simirian
 
 - [ ] automatically detect workspaces on entering NeoVim
     - [x] custom detection with detector functions
-    - [ ] enable workspaces by detectors on calling a lua function
+    - [x] enable workspaces by detectors on calling a lua function
     - [ ] autodetect workspaces on startup
 - [x] dynamic wokspace action with callbacks
 - [ ] enable features on workspace activation, disable on deactivation
     - [x] keymaps
     - [ ] commands
-- [x] automatically configure language servers by workspace
+- [x] automatically setup language servers by workspace
 - [ ] workspaces can imply other workspaces to automatically load each other
 
 ### Projects
@@ -25,8 +25,7 @@ by simirian
 - [x] pick from memorized projects with telescope
 - [ ] new project templates with lua and scripts
 - [ ] automatically recognize project direcotries and load workspaces
-- [ ] cd to a project dir when remotely opening a directory
-  (`nvim ~/sournce/project/`)
+- [ ] cd to first opened file on command line (`nvim ~/source/project/`)
 
 ### Misc todo
 
@@ -76,30 +75,7 @@ local default_config = {
       .. (vim.fn.has("macunix") and "/" or "\\") .. "projects.json",
   arg_cd = true,
   autodetect = "within",
-
   auto_enable = "none",
-  lsp_setup = function(lsp_name, lsp_opts)
-    lsp_opts = lsp_opts or {}
-
-    -- try to load lspconfig
-    local lspok, lspcfg = pcall(require, "lspconfig")
-    if not lspok then
-      vim.notify("nvim-manager.workspaces:\n    "
-        .. "Language server setup failed, could not find lspconfig.",
-        vim.log.levels.ERROR)
-      return
-    end
-
-    -- try to add nvim-cmp capabilities
-    local cmpok, cmplsp = pcall(require, "cmp_nvim_lsp")
-    if cmpok then
-      lsp_opts.capabilities = cmplsp.default_capabilities()
-    end
-
-    -- set up the language server
-    lspcfg[lsp_name].setup(lsp_opts)
-  end,
-
   workspaces = nil,
 }
 ```
@@ -117,23 +93,28 @@ Spec stub:
 ```lua
 local workspace = {
   detector = function() return false end,
-  filetypes = { "cpp" },
   activate = function() end,
   deactivate = function() end,
+  filetypes = { "cpp" },
 
   lsp = {
-    ["lspconfig_name"] = {
-      lspconfig_settings = "...",
-      settings = {
-        lsp_settings = "...",
-      },
+    ["name"] = {
+      cmd = { "language-server-command" }, -- MANDATORY
+      filetypes = { "attach to filetypes" }, -- MANDATORY
+      on_attach = function() end
+      -- see :h vim.lsp.ClientConfig for other keys
     },
   },
-
-  setup_lsp = true,
-
   maps = {
-    { mode = "n", lhs = "f5", rhs = "!make<cr>", opts = {} },
+    {
+      -- see :h vim.keymap.set()
+      "f5", -- left hand side
+      ":!make<cr>", -- right hand side
+      mode = "n", -- optional, defaults to "n"
+      -- any other keys that go to vim.keymap.set() opts
+      -- desc = "",
+      -- noremap = true,
+    },
   },
 }
 ```

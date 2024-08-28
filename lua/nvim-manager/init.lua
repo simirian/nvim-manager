@@ -3,15 +3,18 @@
 
 local M = {}
 
+local setup = false
+
 --- Sets up global settings.
---- @param opts? ManagerConfig Desired configuration.
+--- @param opts? Manager.Config Desired configuration.
 function M.setup(opts)
-  opts = opts or {}
-  local workspaces = opts.workspaces or {}
-  opts.workspaces = nil
-  require("nvim-manager.config").setup(opts)
-  require("nvim-manager.workspaces").setup(workspaces)
-  require("nvim-manager.projects").setup()
+  if not setup then
+    opts = opts or {}
+    require("nvim-manager.config").setup(opts)
+    require("nvim-manager.workspaces").setup()
+    require("nvim-manager.projects").setup()
+    setup = true
+  end
 end
 
 return M

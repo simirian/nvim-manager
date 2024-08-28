@@ -1,10 +1,8 @@
 -- simirian's NeoVim manager
 -- workspace manager
 
-local config = require("nvim-manager.config")
-
 --- List of configured workspaces
---- @type { [string]: WSSpec }
+--- @type { [string]: Manager.WSSpec }
 local ws_specs = {}
 
 --- List of active workspaces.
@@ -46,12 +44,39 @@ function M.activate(name)
   local spec = ws_specs[name]
   if spec.activate then spec.activate() end
 
-  if spec.lsp and spec.setup_lsp ~= false then
+  if spec.lsp then
+    local gid = vim.api.nvim_create_augroup("ManagerLSP-" .. name, {})
     for lsp_name, lsp_opts in pairs(spec.lsp) do
-      if config.lsp_setup then
-        config.lsp_setup(lsp_name, lsp_opts)
-      else
-        H.error("Language server cannot be setup, `lsp_setup()` is undefined.")
+      local ok = true
+      if not lsp_opts.filetypes then
+        H.error(("No file types declared for workspace %s language server %s."
+            .. "No buffers would be attached to this server.")
+          :format(name, lsp_name))
+        ok = false
+      end
+      if not lsp_opts.cmd then
+        H.error(("No command specified for workspace %s language server %s."
+          .. "Cannot start server without command."):format(name, lsp_name))
+        ok = false
+      end
+      if ok then
+        if not lsp_opts.root_dir then
+          lsp_opts.root_dir = vim.fs.root(0, ".git")
+              or vim.fs.normalize(vim.fn.getcwd())
+        end
+        if type(lsp_opts.root_dir) == "function" then
+          lsp_opts.root_dir = lsp_opts.root_dir()
+        end
+        ---  field injected for easy shutdownn in deactivate()
+        --- @diagnostic disable-next-line: inject-field
+        lsp_opts.id = vim.lsp.start(lsp_opts)
+        vim.api.nvim_create_autocmd("FileType", {
+          group = gid,
+          pattern = lsp_opts.filetypes,
+          callback = function(event)
+            vim.lsp.buf_attach_client(event.buf, lsp_opts.id)
+          end,
+        })
       end
     end
   end
@@ -83,6 +108,13 @@ function M.deactivate(name)
   end
   local spec = ws_specs[name]
   if spec.deactivate then spec.deactivate() end
+
+  for _, lsp_opts in pairs(spec.lsp) do
+    --- field injected during activate()
+    --- @diagnostic disable-next-line: undefined-field
+    vim.lsp.stop_client(lsp_opts.id)
+  end
+  vim.api.nvim_del_augroup_by_name("ManagerLSP-" .. name)
 
   if spec.maps then
     for _, map in ipairs(spec.maps) do
@@ -119,7 +151,7 @@ end
 commands.WorkspaceEnable = {
   function(opts) M.enable(opts.fargs[1]) end,
   desc = "Enables multiple workspaces based on argument.",
-  nargs = 1,
+  nargs = "?",
   complete = function() return { "all", "detect" } end,
 }
 
@@ -137,12 +169,12 @@ commands.WorkspaceDisable = {
 
 --- Lists configured workspaces.
 --- @param opts? "all"|"active"|"inactive" Which workspaces to include.
---- @return WSSpec[]
+--- @return Manager.WSSpec[]
 function M.list(opts)
   opts = opts or "all"
   if opts == "all" then return ws_specs end
   if opts == "active" then
-    local list =  {}
+    local list = {}
     for _, name in ipairs(ws_active) do
       list[name] = ws_specs[name]
     end
@@ -163,15 +195,16 @@ commands.WorkspaceList = {
   function(opts) print(vim.inspect(vim.tbl_keys(M.list(opts.fargs[1])))) end,
   desc = "Lists configured workspaces.",
   nargs = "?",
-  complete = function() return {"all", "active", "inactive"} end,
+  complete = function() return { "all", "active", "inactive" } end,
 }
 
-function M.setup(workspaces)
+--- Sets up workspace commands and gets workspaces from the user config.
+function M.setup()
+  ws_specs = require("nvim-manager.config").user.workspaces or {}
   for k, v in pairs(commands) do
     local fn = table.remove(v, 1)
     vim.api.nvim_create_user_command(k, fn, v)
   end
-  ws_specs = workspaces
 end
 
 return M
