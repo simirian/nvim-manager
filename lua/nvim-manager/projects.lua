@@ -1,8 +1,7 @@
 -- simirian's NeoVim manager
 -- projects manager
 
-local config = require("nvim-manager.config")
-local ucfg = config.user
+local ucfg = require("nvim-manager.config").user
 local ws = require("nvim-manager.workspaces")
 
 local vfn = vim.fn
@@ -139,6 +138,13 @@ function M.setup()
   for k, v in pairs(commands) do
     local fn = table.remove(v, 1)
     vim.api.nvim_create_user_command(k, fn, v)
+  end
+
+  if ucfg.arg_cd then
+    local arg_path = vfs.normalize(vfn.argv(0) --[[ @as string ]] or "")
+    if arg_path ~= "" and vfs.basename(arg_path) ~= "COMMIT_EDITMSG" then
+      vim.cmd.cd(arg_path)
+    end
   end
 end
 

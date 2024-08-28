@@ -25,7 +25,7 @@ by simirian
 - [x] pick from memorized projects with telescope
 - [ ] new project templates with lua and scripts
 - [ ] automatically recognize project direcotries and load workspaces
-- [ ] cd to first opened file on command line (`nvim ~/source/project/`)
+- [x] cd to first opened file on command line (`nvim ~/source/project/`)
 
 ### Misc todo
 
