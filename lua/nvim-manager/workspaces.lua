@@ -1,19 +1,57 @@
 -- simirian's NeoVim manager
 -- workspace manager
 
+local api = vim.api
 local vfs = vim.fs
 local vfn = vim.fn
-local lsp = vim.lsp
-
---- List of configured workspaces
---- @type { [string]: Manager.WSSpec }
-local ws_specs = {}
+local lsp = require("nvim-manager.lsp")
 
 --- List of active workspaces.
 --- @type string[]
-local ws_active = {}
+local active_workspaces = {}
 
 local H = {}
+
+--- Defines a workspace keymap.
+--- @class Manager.Workspaces.Keymap: vim.keymap.set.Opts
+--- The left hand side of the keymap.
+--- @field [1] string
+--- The right hand side of the kyemap.
+--- @field [2] string
+--- The mode in which the keymap should be active.
+--- @field mode? ""|"n"|"i"|"c"|"v"|"x"|"s"|"o"|"t"|"l"
+
+
+--- A Workspace specification.
+--- @class Manager.Workspaces.Spec
+--- Callback that determines when a workspace should be activated.
+--- @field detector fun(): boolean
+--- Callback for when a workspace is activated.
+--- @field activate fun()
+--- Callback for when a workspace is deactivated.
+--- @field deactivate fun()
+--- List of filetypes that this workspace will interact with.
+--- @field filetypes string[]
+--- All the lsp server configs to pass to lsp_setup in the general config.
+--- @field lsp { [string]: Manager.LSP.Config }
+--- Keymaps for the workspace.
+--- @field maps Manager.Workspaces.Keymap[]
+
+--- General workspace config.
+--- @class Manager.Workspaces.Config
+--- The specs to load. If this value is a string, it is assumed to be the name
+--- of a lua module.
+--- @field specs? string|{ [string]: Manager.Workspaces.Spec }
+--- How to enable workspaces on startup. This occurs after `arg_cd` in the
+--- projects module.
+--- @field auto_enable? "all"|"detect"|"none"
+H.defaults = {
+  specs = "workspaces",
+  auto_enable = "none",
+}
+
+--- @type Manager.Workspaces.Config
+H.config = {}
 
 --- Appropriately decorates a warning message for this module.
 --- @param msg string The warning message.
@@ -35,60 +73,34 @@ local commands = {}
 --- Activates the given workspace.
 --- @param name string The name of the workspace to activate.
 function M.activate(name)
-  if ws_specs[name] == nil then
+  if H.config.specs[name] == nil then
     H.error("Tried to load unconfigured workspace: " .. name)
     return
   end
 
-  if vim.tbl_contains(ws_active, name) then
+  if vim.tbl_contains(active_workspaces, name) then
     H.warn("Workspace already activated: " .. name)
   end
 
-  table.insert(ws_active, name)
-  local spec = ws_specs[name]
+  table.insert(active_workspaces, name)
+  local spec = H.config.specs[name]
   if spec.activate then spec.activate() end
 
   if spec.lsp then
-    local gid = vim.api.nvim_create_augroup("ManagerLSP-" .. name, {})
     for lsp_name, lsp_opts in pairs(spec.lsp) do
-      local ok = true
-      if not lsp_opts.filetypes then
-        H.error(("No file types declared for workspace %s language server %s."
-            .. "No buffers would be attached to this server.")
-          :format(name, lsp_name))
-        ok = false
-      end
-      if not lsp_opts.cmd then
-        H.error(("No command specified for workspace %s language server %s."
-          .. "Cannot start server without command."):format(name, lsp_name))
-        ok = false
-      end
-      if not lsp_opts.name then
-        lsp_opts.name = "ManagerLSP-" .. name
-      end
-      if ok then
-        if not lsp_opts.root_dir then
-          lsp_opts.root_dir = vfs.root(0, ".git")
-              or vfs.normalize(vfn.getcwd())
-        end
-        if type(lsp_opts.root_dir) == "function" then
-          lsp_opts.root_dir = lsp_opts.root_dir()
-        end
-        vim.api.nvim_create_autocmd("FileType", {
-          group = gid,
-          pattern = lsp_opts.filetypes,
-          callback = function(event)
-            -- this shares language servers by name and root dir
-            lsp.start(lsp_opts)
-          end,
-        })
-      end
+      lsp_opts.name = name .. "." .. lsp_name
+      lsp.register(lsp_opts)
     end
   end
 
   if spec.maps then
     for _, map in ipairs(spec.maps) do
-      vim.keymap.set(map.mode or "n", map.lhs, map.rhs, map.opts or {})
+      local copy = vim.deepcopy(map)
+      local lhs = table.remove(copy, 1)
+      local rhs = table.remove(copy, 1)
+      local mode = copy.mode or "n"
+      copy.mode = nil
+      vim.keymap.set(mode, lhs, rhs, copy)
     end
   end
 end
@@ -103,26 +115,26 @@ commands.WorkspaceActivate = {
 --- Deactivates the given workspace.
 --- @param name string The name of the workspace to deactivate.
 function M.deactivate(name)
-  if not vim.tbl_contains(ws_active, name) then
+  if not vim.tbl_contains(active_workspaces, name) then
     H.error("Attempt to deactivate inactive workspace: " .. name)
     return
   end
 
-  for i, v in ipairs(ws_active) do
-    if v == name then table.remove(ws_active, i) end
+  for i, v in ipairs(active_workspaces) do
+    if v == name then table.remove(active_workspaces, i) end
   end
-  local spec = ws_specs[name]
+  local spec = H.config.specs[name]
   if spec.deactivate then spec.deactivate() end
 
-  for _, server in ipairs(
-    lsp.get_clients{ name = "ManagerLSP-" .. name }) do
-    server.stop()
+  if spec.lsp then
+    for _, lsp_opts in pairs(spec.lsp) do
+      lsp.remove(lsp_opts.name)
+    end
   end
-  vim.api.nvim_del_augroup_by_name("ManagerLSP-" .. name)
 
   if spec.maps then
     for _, map in ipairs(spec.maps) do
-      vim.keymap.del(map.mode, map.lhs, map.opts)
+      vim.keymap.del(map.mode, map[1], { buffer = map.buffer })
     end
   end
 end
@@ -131,7 +143,7 @@ commands.WorkspaceDeactivate = {
   function(opts) M.deactivate(opts.fargs[1]) end,
   desc = "Deactivates the given workspace",
   nargs = 1,
-  complete = function() return ws_active end,
+  complete = function() return active_workspaces end,
 }
 
 --- Enables all workspaces, or enables them based on their detector functions.
@@ -140,12 +152,14 @@ function M.enable(opts)
   opts = opts or "detect"
 
   if opts == "detect" then
-    for name, spec in pairs(ws_specs) do
+    --- @diagnostic disable-next-line param-type-mismatch It's a table here.
+    for name, spec in pairs(H.config.specs) do
       if spec.detector and spec.detector() then
         M.activate(name)
       end
     end
   elseif opts == "all" then
+    --- @diagnostic disable-next-line param-type-mismatch It's a table here.
     for name, _ in pairs(ws_specs) do
       M.activate(name)
     end
@@ -161,7 +175,7 @@ commands.WorkspaceEnable = {
 
 --- Disables all workspaces.
 function M.disable()
-  for _, name in ipairs(ws_active) do
+  for _, name in ipairs(active_workspaces) do
     M.deactivate(name)
   end
 end
@@ -173,21 +187,23 @@ commands.WorkspaceDisable = {
 
 --- Lists configured workspaces.
 --- @param opts? "all"|"active"|"inactive" Which workspaces to include.
---- @return Manager.WSSpec[]
+--- @return { [string]: Manager.Workspaces.Spec }
 function M.list(opts)
   opts = opts or "all"
-  if opts == "all" then return ws_specs end
+  --- @diagnostic disable-next-line param-type-mismatch It's a table here.
+  if opts == "all" then return H.config.specs end
   if opts == "active" then
     local list = {}
-    for _, name in ipairs(ws_active) do
-      list[name] = ws_specs[name]
+    for _, name in ipairs(active_workspaces) do
+      list[name] = H.config.specs[name]
     end
     return list
   end
   if opts == "inactive" then
     local list = {}
-    for name, spec in pairs(ws_specs) do
-      if not vim.tbl_contains(ws_active, name) then
+    --- @diagnostic disable-next-line param-type-mismatch It's a table here.
+    for name, spec in pairs(H.config.specs) do
+      if not vim.tbl_contains(active_workspaces, name) then
         list[name] = spec
       end
     end
@@ -203,8 +219,28 @@ commands.WorkspaceList = {
 }
 
 --- Sets up workspace commands and gets workspaces from the user config.
-function M.setup()
-  ws_specs = require("nvim-manager.config").user.workspaces or {}
+--- @param opts Manager.Workspaces.Config
+function M.setup(opts)
+  H.config = setmetatable(opts or {}, { __index = H.defaults })
+
+  if type(H.config.specs) == "string" then
+    local modname = H.config.specs --[[ @as string ]]
+    H.config.specs = {}
+    local modules = api.nvim_get_runtime_file(
+      vfs.joinpath("lua", modname:gsub("%.", "/"), "*.lua"), true)
+    for _, module in ipairs(modules) do
+      local name = vfn.fnamemodify(module, ":t:r")
+      H.config.specs[name] =
+          require(modname .. "." .. name)
+    end
+  end
+
+  if H.config.auto_enable == "all" then
+    M.enable("all")
+  elseif H.config.auto_enable == "detect" then
+    M.enable("detect")
+  end
+
   for k, v in pairs(commands) do
     local fn = table.remove(v, 1)
     vim.api.nvim_create_user_command(k, fn, v)
