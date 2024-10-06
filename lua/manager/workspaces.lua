@@ -4,7 +4,7 @@
 local api = vim.api
 local vfs = vim.fs
 local vfn = vim.fn
-local lsp = require("nvim-manager.lsp")
+local lsp = require("manager.lsp")
 
 --- List of active workspaces.
 --- @type string[]
@@ -20,7 +20,6 @@ local H = {}
 --- @field [2] string
 --- The mode in which the keymap should be active.
 --- @field mode? ""|"n"|"i"|"c"|"v"|"x"|"s"|"o"|"t"|"l"
-
 
 --- A Workspace specification.
 --- @class Manager.Workspaces.Spec

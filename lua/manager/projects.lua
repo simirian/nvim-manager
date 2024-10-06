@@ -1,7 +1,7 @@
 -- simirian's NeoVim manager
 -- projects manager
 
-local ws = require("nvim-manager.workspaces")
+local ws = require("manager.workspaces")
 
 local vfn = vim.fn
 local vfs = vim.fs

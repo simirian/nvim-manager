@@ -52,7 +52,7 @@ which you can get with `vim.fn.stdpath("data")`)
 
 ### Workspaces
 
-Access the workspaces API in lua with `require("nvim-manager.workspaces")`:
+Access the workspaces API in lua with `require("manager.workspaces")`:
 
 | memeber        | usage                                              |
 | -------------- | -------------------------------------------------- |
@@ -64,7 +64,7 @@ Access the workspaces API in lua with `require("nvim-manager.workspaces")`:
 
 ### Projects
 
-Access the projects API through lua with `require("nvim-manger.projects")`:
+Access the projects API through lua with `require("manger.projects")`:
 
 | member      | usage                                              |
 | ----------- | -------------------------------------------------- |
@@ -81,7 +81,7 @@ projects manager. Each can be set up individually with their own modules, or
 together with the overall module.
 
 ```lua
-require("nvim-contour").setup {
+require("manager").setup {
   --- @class Manager.Project.Config
   --- The path in which to save the projects.json file.
   --- @field project_path? string

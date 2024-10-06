@@ -3,7 +3,7 @@
 
 local tok, telescope = pcall(require, "telescope")
 
-local projects = require("nvim-manager.projects")
+local projects = require("manager.projects")
 
 local pickers = require("telescope.pickers")
 local finders = require("telescope.finders")
