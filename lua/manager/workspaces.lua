@@ -6,11 +6,12 @@ local vfs = vim.fs
 local vfn = vim.fn
 local lsp = require("manager.lsp")
 
+local H = {}
+local M = {}
+
 --- List of active workspaces.
 --- @type string[]
-local active_workspaces = {}
-
-local H = {}
+H.active = {}
 
 --- Defines a workspace keymap.
 --- @class Manager.Workspaces.Keymap: vim.keymap.set.Opts
@@ -66,8 +67,7 @@ function H.error(msg)
     vim.log.levels.ERROR)
 end
 
-local M = {}
-local commands = {}
+H.commands = {}
 
 --- Activates the given workspace.
 --- @param name string The name of the workspace to activate.
@@ -77,11 +77,11 @@ function M.activate(name)
     return
   end
 
-  if vim.tbl_contains(active_workspaces, name) then
+  if vim.tbl_contains(H.active, name) then
     H.warn("Workspace already activated: " .. name)
   end
 
-  table.insert(active_workspaces, name)
+  table.insert(H.active, name)
   local spec = H.config.specs[name]
   if spec.activate then spec.activate() end
 
@@ -104,23 +104,23 @@ function M.activate(name)
   end
 end
 
-commands.WorkspaceActivate = {
+H.commands.WorkspaceActivate = {
   function(opts) M.activate(opts.fargs[1]) end,
   desc = "Activates the given workspace.",
   nargs = 1,
-  complete = function() return M.list("inactive") end,
+  complete = function() return vim.tbl_keys(M.list("inactive")) end,
 }
 
 --- Deactivates the given workspace.
 --- @param name string The name of the workspace to deactivate.
 function M.deactivate(name)
-  if not vim.tbl_contains(active_workspaces, name) then
+  if not vim.tbl_contains(H.active, name) then
     H.error("Attempt to deactivate inactive workspace: " .. name)
     return
   end
 
-  for i, v in ipairs(active_workspaces) do
-    if v == name then table.remove(active_workspaces, i) end
+  for i, v in ipairs(H.active) do
+    if v == name then table.remove(H.active, i) end
   end
   local spec = H.config.specs[name]
   if spec.deactivate then spec.deactivate() end
@@ -138,11 +138,11 @@ function M.deactivate(name)
   end
 end
 
-commands.WorkspaceDeactivate = {
+H.commands.WorkspaceDeactivate = {
   function(opts) M.deactivate(opts.fargs[1]) end,
   desc = "Deactivates the given workspace",
   nargs = 1,
-  complete = function() return active_workspaces end,
+  complete = function() return H.active end,
 }
 
 --- Enables all workspaces, or enables them based on their detector functions.
@@ -159,13 +159,13 @@ function M.enable(opts)
     end
   elseif opts == "all" then
     --- @diagnostic disable-next-line param-type-mismatch It's a table here.
-    for name, _ in pairs(ws_specs) do
+    for name, _ in pairs(H.config.specs) do
       M.activate(name)
     end
   end
 end
 
-commands.WorkspaceEnable = {
+H.commands.WorkspaceEnable = {
   function(opts) M.enable(opts.fargs[1]) end,
   desc = "Enables multiple workspaces based on argument.",
   nargs = "?",
@@ -174,12 +174,12 @@ commands.WorkspaceEnable = {
 
 --- Disables all workspaces.
 function M.disable()
-  for _, name in ipairs(active_workspaces) do
+  for _, name in ipairs(H.active) do
     M.deactivate(name)
   end
 end
 
-commands.WorkspaceDisable = {
+H.commands.WorkspaceDisable = {
   function(_) M.disable() end,
   desc = "Disables all workspaces.",
 }
@@ -193,7 +193,7 @@ function M.list(opts)
   if opts == "all" then return H.config.specs end
   if opts == "active" then
     local list = {}
-    for _, name in ipairs(active_workspaces) do
+    for _, name in ipairs(H.active) do
       list[name] = H.config.specs[name]
     end
     return list
@@ -202,7 +202,7 @@ function M.list(opts)
     local list = {}
     --- @diagnostic disable-next-line param-type-mismatch It's a table here.
     for name, spec in pairs(H.config.specs) do
-      if not vim.tbl_contains(active_workspaces, name) then
+      if not vim.tbl_contains(H.active, name) then
         list[name] = spec
       end
     end
@@ -210,7 +210,7 @@ function M.list(opts)
   end --- @diagnostic disable-line missing-return
 end
 
-commands.WorkspaceList = {
+H.commands.WorkspaceList = {
   function(opts) vim.print(vim.tbl_keys(M.list(opts.fargs[1]))) end,
   desc = "Lists configured workspaces.",
   nargs = "?",
@@ -240,7 +240,7 @@ function M.setup(opts)
     M.enable("detect")
   end
 
-  for k, v in pairs(commands) do
+  for k, v in pairs(H.commands) do
     local fn = table.remove(v, 1)
     vim.api.nvim_create_user_command(k, fn, v)
   end

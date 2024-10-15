@@ -9,9 +9,15 @@ Nvim Manager is meant for power-users, and is designed to work best if you *read
 documentation*. This plugin is also designed for customizability, and the entire
 workspaces feature will not work out of the box.
 
+- [x] cd to first opened file on command line (`nvim ~/source/project/`)
+- [ ] vim helpfile
+- [ ] configuration
+    - [x] guide in README
+- [x] vim command api
+
 ### Workspaces
 
-- [ ] automatically detect workspaces on entering NeoVim
+- [x] automatically detect workspaces on entering NeoVim
     - [x] custom detection with detector functions
     - [x] enable workspaces by detectors on calling a lua function
     - [x] automatically enable detected workspaces on startup
@@ -29,14 +35,6 @@ workspaces feature will not work out of the box.
 - [x] pick from memorized projects with telescope
 - [ ] new project templates with lua and scripts
 - [x] automatically recognize project direcotries and load workspaces
-- [x] cd to first opened file on command line (`nvim ~/source/project/`)
-
-### Misc todo
-
-- [ ] vim helpfile
-- [ ] configuration
-    - [x] guide in README
-- [x] vim command api
 
 ## Usage
 
@@ -82,12 +80,14 @@ together with the overall module.
 
 ```lua
 require("manager").setup {
+  --- Whether or not to automatically change directory to the first command-line
+  --- file argument.
+  --- @type arg_cd? boolean
+  arg_cd = true,
+
   --- @class Manager.Project.Config
   --- The path in which to save the projects.json file.
   --- @field project_path? string
-  --- Whether or not to automatically change directory to the first command-line
-  --- file argument.
-  --- @field arg_cd? boolean
   --- How to autodetect loading projects in a certain directory, *after* arg_cd.
   --- eg. `nvim` will load the project in the current directory
   --- eg. `nvim ./path/to/project/` would load the project there with arg_cd on
@@ -97,8 +97,7 @@ require("manager").setup {
   --- @field autodetect? "never"|"exact"|"within"
   projects = {
     project_path = vim.fs.joinpath(vfn.stdpath("data"), "projects.json"),
-    arg_cd = true,
-    auto_detect = "within",
+    autodetect = "within",
   },
 
   --- General workspace config.
@@ -106,8 +105,7 @@ require("manager").setup {
   --- The specs to load. If this value is a string, it is assumed to be the name
   --- of a lua module.
   --- @field specs? string|{ [string]: Manager.Workspaces.Spec }
-  --- How to enable workspaces on startup. This occurs after `arg_cd` in the
-  --- projects module.
+  --- How to enable workspaces on startup. This occurs after `arg_cd`.
   --- @field auto_enable? "all"|"detect"|"none"
   workspaces = {
     specs = "workspaces",
