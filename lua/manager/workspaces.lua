@@ -27,15 +27,15 @@ H.active = {}
 --- Callback that determines when a workspace should be activated.
 --- @field detector fun(): boolean
 --- Callback for when a workspace is activated.
---- @field activate fun()
+--- @field activate? fun()
 --- Callback for when a workspace is deactivated.
---- @field deactivate fun()
+--- @field deactivate? fun()
 --- List of filetypes that this workspace will interact with.
---- @field filetypes string[]
+--- @field filetypes? string[]
 --- All the lsp server configs to pass to lsp_setup in the general config.
---- @field lsp { [string]: Manager.LSP.Config }
+--- @field lsp? { [string]: Manager.LSP.Config }
 --- Keymaps for the workspace.
---- @field maps Manager.Workspaces.Keymap[]
+--- @field maps? Manager.Workspaces.Keymap[]
 
 --- General workspace config.
 --- @class Manager.Workspaces.Config

@@ -1,9 +1,8 @@
 -- simirian's NeoVim manager
 -- lsp manager
 
-local vls = vim.lsp
+local lsp = vim.lsp
 local vfn = vim.fn
-local vfs = vim.fs
 local api = vim.api
 local uv = vim.loop
 
@@ -13,9 +12,9 @@ local M = {}
 --- Language server config.
 --- @class Manager.LSP.Config: vim.lsp.ClientConfig
 --- The filetypes to attach the language server to.
---- @field filetypes string[]
---- The root directory in which the server should be activated.
---- @field root_dir string|fun(): string
+--- @field filetypes string|string[]
+--- A function that gets the root directory for the language server.
+--- @field get_root? fun(): string
 
 --- @type { [string]: Manager.LSP.Config }
 H.specs = {}
@@ -27,66 +26,61 @@ function H.error(msg)
     vim.log.levels.ERROR)
 end
 
---- Generates an augroup for a server.
---- @param server Manager.LSP.Config The server to generate an augroup for.
---- @return integer gid
-function H.augroup(server)
-  return api.nvim_create_augroup(
-    "Manager.LSP." .. server.name, { clear = false })
-end
+H.augroup = api.nvim_create_augroup("Manager_LSP", { clear = false })
 
 --- Cleans a language server config.
 --- @param server Manager.LSP.Config
 --- @return boolean success
-function H.clean_config(server)
+function H.validate(server)
   local ok = true
   if not server.name then
     H.error("Unnamed language server.")
+    server.name = "(unnamed server)"
     ok = false
   end
   if not server.cmd then
-    H.error("Language server has no `cmd`, it cannot be run: "
-      .. (server.name or "unnamed"))
+    H.error("Language server has no `cmd`, it cannot be run: " .. server.name)
     ok = false
   end
   if not server.filetypes then
     H.error("Language server has no `filetypes`, it will never attach: "
-      .. (server.name or "unnamed"))
+      .. server.name)
     ok = false
   end
-  if not ok then return false end
+  return ok
+end
 
-  if not server.root_dir then
-    server.root_dir = function()
-      return vfs.root(0, ".git") or vfs.normalize(uv.cwd())
-    end
+--- Cleans a language server config to ensure that it works properly.
+--- @param server Manager.LSP.Config
+function H.clean(server)
+  if not server.root_dir and not server.get_root then
+    server.get_root = function() return uv.cwd() end
   end
-
   if uv.os_uname().sysname == "Windows_NT" and server.cmd[1] ~= vim.o.shell then
-    local cmd = { vim.o.shell, vim.o.shellcmdflag }
-    for _, arg in ipairs(server.cmd --[[ @as string[] ]]) do cmd[#cmd] = arg end
+    local cmd = vim.list_extend({ vim.o.shell }, vim.split(vim.o.shellcmdflag, " "))
+    for _, arg in ipairs(server.cmd --[[ @as string[] ]]) do cmd[#cmd + 1] = arg end
     server.cmd = cmd
   end
-  return true
 end
 
 --- Registers a server config.
 --- @param server Manager.LSP.Config The server config to register.
 function M.register(server)
-  local cleaned = H.clean_config(server)
-  if not cleaned then return end
+  H.clean(server)
+  local ok = H.validate(server)
+  if not ok then return end
 
   H.specs[server.name] = server
 
   api.nvim_create_autocmd("FileType", {
-    group = H.augroup(server),
+    group = H.augroup,
     pattern = server.filetypes,
     callback = function()
       local copy = vfn.copy(server)
-      if type(copy.root_dir) == "function" then
-        copy.root_dir = copy.root_dir()
+      if not copy.root_dir and copy.get_root then
+        copy.root_dir = copy.get_root()
       end
-      vls.start(copy)
+      lsp.start(copy)
     end
   })
 end
@@ -94,13 +88,12 @@ end
 --- Removes a language server registry entry.
 --- @param name string The server name.
 function M.remove(name)
-  if not H.specs[name] then
-    H.error("Tried to remove an unknown language server: " .. name .. ".")
+  local clients = lsp.get_clients { name = name }
+  if not next(clients) then
+    H.error("Tried to remove an unknown language server: " .. name)
     return
   end
-  local clients = vls.get_clients { name = name }
   for _, client in ipairs(clients) do client.stop() end
-  api.nvim_del_augroup_by_id(H.augroup(H.specs[name]))
 end
 
 return M

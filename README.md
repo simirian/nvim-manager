@@ -13,6 +13,7 @@ workspaces feature will not work out of the box.
 - [ ] vim helpfile
 - [ ] configuration
     - [x] guide in README
+    - [ ] guide in :help
 - [x] vim command api
 
 ### Workspaces
